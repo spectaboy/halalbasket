@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "HalalBasket",
+    "slug": "halalbasket",
+    "scheme": "halalbasket",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "runtimeVersion": "1.0.0",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.halalbasket.app",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1A5C38"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE"
+      ],
+      "package": "com.halalbasket.app"
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "2.0.21"
+          }
+        }
+      ],
+      [
+        "@rnmapbox/maps",
+        {}
+      ],
+      "expo-router",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "HalalBasket uses the camera to capture verification documents (business licence, permits, ID).",
+          "photosPermission": "HalalBasket accesses your photos so you can upload listing photos and verification documents."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "HalalBasket uses your location to show nearby halal sellers and track your delivery in real time."
+        }
+      ]
+    ],
+    "extra": {
+      "mapboxAccessToken": "",
+      "router": {}
+    }
+  }
+}

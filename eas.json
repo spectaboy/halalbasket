@@ -1,0 +1,46 @@
+{
+  "cli": {
+    "version": ">= 9.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "prebuildCommand": "npx expo prebuild --clean"
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "SET_ME",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "SET_ME",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "SET_ME",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "SET_ME"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "SET_ME",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "SET_ME",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "SET_ME",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "SET_ME"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

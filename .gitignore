@@ -1,0 +1,65 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+eas-build-pre-upload.tar.gz
+
+# Native build artifacts
+android/build/
+android/app/build/
+ios/build/
+ios/Pods/
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+.env*.local
+
+# Google / Firebase service config
+# NOTE: google-services.json is the Android client Firebase config (ships inside
+# every APK, low sensitivity) and is committed so EAS cloud builds can consume it
+# via app.json's googleServicesFile. For production, prefer an EAS file secret.
+GoogleService-Info.plist
+
+# typescript
+*.tsbuildinfo
+
+# Claude Code local state
+.claude/worktrees/
+.claude/settings.local.json
+
+# Dev log mirrors (scripts/dev-multi.ps1)
+logs/
+
+# Local tooling / editor config / CLI scratch / generated docs (not project source)
+.claude/
+.cursor/
+.vscode/
+supabase/.temp/
+DOCS.html
+
+graphify-out/
