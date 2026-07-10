@@ -145,7 +145,7 @@ max_catalogs = 2
 
 # Store vector embeddings in S3 for large and durable datasets
 [storage.vector]
-enabled = true
+enabled = false
 max_buckets = 10
 max_indexes = 5
 
@@ -358,9 +358,8 @@ enabled = false
 
 # Use Clerk as a third-party provider alongside Supabase Auth.
 [auth.third_party.clerk]
-enabled = false
-# Obtain from https://clerk.com/setup/supabase
-# domain = "example.clerk.accounts.dev"
+enabled = true
+domain = "winning-starling-39.clerk.accounts.dev"
 
 # OAuth server configuration
 [auth.oauth_server]
@@ -440,3 +439,4 @@ verify_jwt = false
 verify_jwt = false
 [functions.send-notification]
 verify_jwt = false
+
