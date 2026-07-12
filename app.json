@@ -2,6 +2,7 @@
   "expo": {
     "name": "HalalBasket",
     "slug": "halalbasket",
+    "owner": "omar.almishri",
     "scheme": "halalbasket",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -70,7 +71,10 @@
     ],
     "extra": {
       "mapboxAccessToken": "",
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "5a0edf95-47f6-434e-81b0-eb11a83bf0b9"
+      }
     }
   }
 }
