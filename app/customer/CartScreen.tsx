@@ -1,15 +1,10 @@
+import { fonts } from '../../constants/typography';
+import { marketplaceImage } from '../demo/images';
 // HalalBasket — the basket. Single-seller cart with quantity steppers and a
 // checkout CTA.
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -42,12 +37,17 @@ export default function CartScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+        >
           <Ionicons name="arrow-back" size={22} color={lightColors.textDark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your basket</Text>
         {isEmpty ? (
-          <View style={styles.backBtn} />
+          <View style={{ width: 44 }} />
         ) : (
           <TouchableOpacity style={styles.backBtn} onPress={handleClear}>
             <Ionicons name="trash-outline" size={20} color={lightColors.error} />
@@ -87,7 +87,13 @@ export default function CartScreen({ navigation }: Props) {
               >
                 <View style={styles.sellerIconCircle}>
                   <Ionicons
-                    name={seller.sellerType === 'home_cook' ? 'home' : seller.sellerType === 'butcher' ? 'storefront' : 'restaurant'}
+                    name={
+                      seller.sellerType === 'home_cook'
+                        ? 'home'
+                        : seller.sellerType === 'butcher'
+                          ? 'storefront'
+                          : 'restaurant'
+                    }
                     size={18}
                     color={lightColors.primary}
                   />
@@ -113,20 +119,21 @@ export default function CartScreen({ navigation }: Props) {
             {items.map(({ listing, quantity }) => (
               <View key={listing.id} style={styles.itemRow}>
                 {listing.image_url ? (
-                  <Image source={{ uri: listing.image_url }} style={styles.itemImage} />
+                  <Image source={marketplaceImage(listing.image_url)} style={styles.itemImage} />
                 ) : (
                   <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
                     <Ionicons name="fast-food-outline" size={20} color={lightColors.primary} />
                   </View>
                 )}
                 <View style={styles.itemBody}>
-                  <Text style={styles.itemName} numberOfLines={1}>
+                  <Text style={styles.itemName} numberOfLines={2}>
                     {listing.name}
                   </Text>
                   <Text style={styles.itemPrice}>{formatMoney(listing.price * quantity)}</Text>
                 </View>
                 <View style={styles.stepper}>
                   <TouchableOpacity
+                    accessibilityLabel={`Decrease ${listing.name}`}
                     style={styles.stepBtn}
                     onPress={() =>
                       quantity <= 1 ? removeItem(listing.id) : setQuantity(listing.id, quantity - 1)
@@ -141,6 +148,7 @@ export default function CartScreen({ navigation }: Props) {
                   </TouchableOpacity>
                   <Text style={styles.stepValue}>{quantity}</Text>
                   <TouchableOpacity
+                    accessibilityLabel={`Increase ${listing.name}`}
                     style={styles.stepBtn}
                     onPress={() => setQuantity(listing.id, Math.min(99, quantity + 1))}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -168,6 +176,7 @@ export default function CartScreen({ navigation }: Props) {
           {/* Checkout bar */}
           <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <TouchableOpacity
+              accessibilityLabel="Go to checkout"
               style={styles.checkoutBtn}
               activeOpacity={0.9}
               onPress={() => navigation.navigate('Checkout')}
@@ -195,16 +204,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20,
     backgroundColor: lightColors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 24,
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   scrollContent: {
@@ -231,7 +240,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 19,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     textAlign: 'center',
   },
@@ -251,7 +260,7 @@ const styles = StyleSheet.create({
   browseBtnText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
 
   // Seller header
@@ -278,13 +287,13 @@ const styles = StyleSheet.create({
   },
   sellerName: {
     fontSize: 15.5,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   sellerHint: {
     fontSize: 12,
     color: lightColors.textMuted,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   preOrderRow: {
     flexDirection: 'row',
@@ -293,7 +302,7 @@ const styles = StyleSheet.create({
   },
   preOrderText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.primary,
   },
 
@@ -325,12 +334,12 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 14.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   itemPrice: {
     fontSize: 13.5,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.primary,
   },
   stepper: {
@@ -353,7 +362,7 @@ const styles = StyleSheet.create({
   },
   stepValue: {
     fontSize: 14.5,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     minWidth: 18,
     textAlign: 'center',
@@ -376,18 +385,18 @@ const styles = StyleSheet.create({
   },
   subtotalLabel: {
     fontSize: 14.5,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
     color: lightColors.textDark,
   },
   subtotalValue: {
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   subtotalHint: {
     fontSize: 12,
     color: lightColors.textMuted,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 
   // Checkout bar
@@ -410,11 +419,11 @@ const styles = StyleSheet.create({
   checkoutBtnText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   checkoutBtnAmount: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
   },
 });

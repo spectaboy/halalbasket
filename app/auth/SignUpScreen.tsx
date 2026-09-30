@@ -1,7 +1,7 @@
 // app/auth/SignUpScreen.tsx — email + password account creation via Clerk.
 // signUp.create -> prepareEmailAddressVerification('email_code') -> VerifyEmail.
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -19,7 +19,9 @@ import * as WebBrowser from 'expo-web-browser';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { lightColors } from '../../constants/theme';
-import BackgroundPattern from '../components/BackgroundPattern';
+import { fonts } from '../../constants/typography';
+import LoadingDots from '../components/ui/LoadingDots';
+import OnboardingPhoto from '../components/ui/OnboardingPhoto';
 import { FieldError, errorBorder, useInlineErrors } from '../components/ui/FieldError';
 import { notify } from '../lib/notify';
 
@@ -27,6 +29,7 @@ const TERMS_URL = 'https://halalbasket.app/terms';
 const PRIVACY_URL = 'https://halalbasket.app/privacy';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 15;
 const normalizeEmail = (raw: string) => raw.trim().toLowerCase();
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
@@ -43,6 +46,7 @@ const SignUpScreen = ({ navigation }: Props) => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   const { errors, setErrors, clearError } = useInlineErrors<Field>();
 
   const emailValid = EMAIL_RE.test(normalizeEmail(email));
@@ -50,7 +54,7 @@ const SignUpScreen = ({ navigation }: Props) => {
   const validate = (): boolean => {
     const next: Partial<Record<Field, string>> = {};
     if (!emailValid) next.email = 'Enter a valid email address';
-    if (password.length < 8) next.password = 'Password must be at least 8 characters';
+    if (password.length < MIN_PASSWORD_LENGTH) next.password = 'Password must be at least 15 characters';
     if (confirmPassword !== password) next.confirm = 'Passwords do not match';
     if (!agreedToTerms) next.terms = 'You must accept the terms to continue';
     setErrors(next);
@@ -58,10 +62,11 @@ const SignUpScreen = ({ navigation }: Props) => {
   };
 
   const handleSignUp = async () => {
-    if (!isLoaded || !signUp) return;
+    if (!isLoaded || !signUp || submitting.current) return;
     if (!validate()) return;
 
     const normalizedEmail = normalizeEmail(email);
+    submitting.current = true;
     setLoading(true);
     try {
       await signUp.create({ emailAddress: normalizedEmail, password });
@@ -82,16 +87,16 @@ const SignUpScreen = ({ navigation }: Props) => {
         );
       }
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
 
-  const isFormValid =
-    emailValid && password.length >= 8 && confirmPassword === password && agreedToTerms;
+  const submitDisabled = !isLoaded || !signUp || loading;
+  const missingPasswordCharacters = Math.max(0, MIN_PASSWORD_LENGTH - password.length);
 
   return (
     <SafeAreaView style={styles.container}>
-      <BackgroundPattern />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -102,15 +107,19 @@ const SignUpScreen = ({ navigation }: Props) => {
           showsVerticalScrollIndicator={false}
         >
           {/* Back */}
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back">
             <Ionicons name="arrow-back" size={22} color={lightColors.primary} />
           </TouchableOpacity>
 
+          <View style={styles.photo}>
+            <OnboardingPhoto source={require('../../assets/onboarding/home-cooking.png')} height={170} label="A home cook preparing a meal with fresh herbs" />
+          </View>
+
           {/* Heading */}
           <View style={styles.headingWrap}>
-            <Text style={styles.title}>Create your account</Text>
+            <Text style={styles.title}>Make yourself at home.</Text>
             <Text style={styles.subtitle}>
-              Sign up to start filling your basket with everything halal.
+              Create your account. Good food starts here.
             </Text>
           </View>
 
@@ -151,7 +160,7 @@ const SignUpScreen = ({ navigation }: Props) => {
               />
               <TextInput
                 style={styles.input}
-                placeholder="Password (8+ characters)"
+                placeholder="Password (15+ characters)"
                 placeholderTextColor={lightColors.textMuted}
                 value={password}
                 onChangeText={(t) => {
@@ -170,6 +179,15 @@ const SignUpScreen = ({ navigation }: Props) => {
               </TouchableOpacity>
             </View>
             <FieldError message={errors.password} />
+            {!errors.password && (
+              <Text style={styles.fieldHint} accessibilityLiveRegion="polite">
+                {!password.length
+                  ? 'Use at least 15 characters.'
+                  : missingPasswordCharacters > 0
+                    ? `Add ${missingPasswordCharacters} more character${missingPasswordCharacters === 1 ? '' : 's'} (15 minimum).`
+                    : '15-character minimum met.'}
+              </Text>
+            )}
 
             <View style={[styles.inputRow, errorBorder(!!errors.confirm)]}>
               <Ionicons
@@ -235,13 +253,16 @@ const SignUpScreen = ({ navigation }: Props) => {
             <FieldError message={errors.terms} />
 
             <TouchableOpacity
-              style={[styles.primaryBtn, (!isFormValid || loading) && styles.primaryBtnDisabled]}
+              style={[styles.primaryBtn, submitDisabled && styles.primaryBtnDisabled]}
               onPress={handleSignUp}
-              disabled={!isFormValid || loading}
+              disabled={submitDisabled}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: submitDisabled, busy: loading || !isLoaded }}
             >
+              {loading && <LoadingDots color="#FFFFFF" />}
               <Text style={styles.primaryBtnText}>
-                {loading ? 'Creating account…' : 'Create account'}
+                {loading ? 'Creating account…' : !isLoaded ? 'Connecting…' : 'Create account'}
               </Text>
               {!loading && (
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
@@ -262,6 +283,14 @@ const SignUpScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
+  fieldHint: {
+    color: lightColors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 19,
+    paddingHorizontal: 2,
+    marginTop: 6,
+  },
   container: {
     flex: 1,
     backgroundColor: lightColors.background,
@@ -269,11 +298,14 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
     paddingBottom: 32,
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20,
     backgroundColor: lightColors.inputBg,
     alignItems: 'center',
@@ -283,17 +315,19 @@ const styles = StyleSheet.create({
   },
   headingWrap: {
     paddingHorizontal: 28,
-    marginTop: 28,
+    marginTop: 22,
     marginBottom: 28,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 32,
+    lineHeight: 40,
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     letterSpacing: -0.5,
     marginBottom: 8,
   },
   subtitle: {
+    fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     color: lightColors.textMuted,
@@ -309,9 +343,10 @@ const styles = StyleSheet.create({
     backgroundColor: lightColors.inputBg,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: lightColors.divider,
     paddingHorizontal: 14,
-    height: 54,
+    minHeight: 60,
+    paddingVertical: 8,
   },
   inputIcon: {
     marginRight: 10,
@@ -320,7 +355,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: lightColors.textDark,
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   eyeBtn: {
     padding: 6,
@@ -335,53 +370,58 @@ const styles = StyleSheet.create({
   termsText: {
     flex: 1,
     color: lightColors.textMuted,
+    fontFamily: fonts.regular,
     fontSize: 13,
     lineHeight: 19,
   },
   termsLink: {
     color: lightColors.primary,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   primaryBtn: {
+    gap: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: lightColors.primary,
-    borderRadius: 12,
+    borderRadius: 18,
     paddingVertical: 16,
     marginTop: 12,
     shadowColor: lightColors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 0,
   },
   primaryBtnDisabled: {
-    backgroundColor: '#C8DDD2',
+    backgroundColor: '#83968A',
     shadowOpacity: 0,
     elevation: 0,
   },
   primaryBtnText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   signInRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 6,
     marginTop: 16,
   },
   signInText: {
     color: lightColors.textMuted,
+    fontFamily: fonts.regular,
     fontSize: 15,
   },
   signInLink: {
     color: lightColors.primary,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
+  photo: { marginHorizontal: 24, marginTop: 22 },
 });
 
 export default SignUpScreen;

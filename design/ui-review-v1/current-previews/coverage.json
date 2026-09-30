@@ -1,0 +1,272 @@
+[
+  {
+    "screen": "CompleteProfile",
+    "group": "auth",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SignIn",
+    "group": "auth",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SignUp",
+    "group": "auth",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "VerifyEmail",
+    "group": "auth",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Welcome",
+    "group": "auth",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Cart",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "CategoryBrowse",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Checkout",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Home",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "LeaveReview",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "ListingDetail",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "OrderConfirmation",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Orders",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "OrderTracking",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "PreOrderWindowDetail",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Search",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerDetail",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "EditProfile",
+    "group": "profile",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Profile",
+    "group": "profile",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "StripeConnect",
+    "group": "profile",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "CreatePreOrderWindow",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "EditListing",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerCompliance",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerDashboard",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerEarnings",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerListings",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerOnboarding",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerOrderDetail",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerOrders",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerProfile",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SellerVerificationPending",
+    "group": "seller",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "ActiveDelivery",
+    "group": "driver",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "DriverDeliveries",
+    "group": "driver",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "DriverEarnings",
+    "group": "driver",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "DriverHome",
+    "group": "driver",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "DriverOnboarding",
+    "group": "driver",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "DriverProfile",
+    "group": "driver",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "DriverVerificationPending",
+    "group": "driver",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "AdminDashboard",
+    "group": "admin",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "AdminDriverReview",
+    "group": "admin",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "AdminDrivers",
+    "group": "admin",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "AdminOrderDetail",
+    "group": "admin",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "AdminOrders",
+    "group": "admin",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "AdminSellerReview",
+    "group": "admin",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "AdminSellers",
+    "group": "admin",
+    "failure": null,
+    "errors": []
+  }
+]

@@ -1,0 +1,94 @@
+[
+  {
+    "name": "Discovery loads actual source cards from fixture data",
+    "status": "PASS"
+  },
+  {
+    "name": "Home-cook filter excludes restaurant sellers",
+    "status": "PASS"
+  },
+  {
+    "name": "Dish search displays matching listing",
+    "status": "PASS"
+  },
+  {
+    "name": "Clearing an in-flight search does not restore stale results",
+    "status": "PASS"
+  },
+  {
+    "name": "Connection error displays retry action",
+    "status": "PASS"
+  },
+  {
+    "name": "Retry recovers seller results",
+    "status": "PASS"
+  },
+  {
+    "name": "Category availability filter exposes selected state",
+    "status": "PASS"
+  },
+  {
+    "name": "Empty sign-in form remains disabled",
+    "status": "PASS"
+  },
+  {
+    "name": "Populated sign-in form enables action",
+    "status": "PASS"
+  },
+  {
+    "name": "Password visibility toggle works",
+    "status": "PASS"
+  },
+  {
+    "name": "Pasting six digits distributes across all OTP boxes",
+    "status": "PASS"
+  },
+  {
+    "name": "Profile can continue with optional address blank",
+    "status": "PASS"
+  },
+  {
+    "name": "Profile blocks invalid overlong phone",
+    "status": "PASS"
+  },
+  {
+    "name": "SignIn: no horizontal overflow at 320px",
+    "status": "PASS"
+  },
+  {
+    "name": "SignIn: primary action reachable by scrolling",
+    "status": "PASS"
+  },
+  {
+    "name": "VerifyEmail: no horizontal overflow at 320px",
+    "status": "PASS"
+  },
+  {
+    "name": "VerifyEmail: primary action reachable by scrolling",
+    "status": "PASS"
+  },
+  {
+    "name": "CompleteProfile: no horizontal overflow at 320px",
+    "status": "PASS"
+  },
+  {
+    "name": "CompleteProfile: primary action reachable by scrolling",
+    "status": "PASS"
+  },
+  {
+    "name": "Home: no horizontal overflow at 320px",
+    "status": "PASS"
+  },
+  {
+    "name": "Search: no horizontal overflow at 320px",
+    "status": "PASS"
+  },
+  {
+    "name": "CategoryBrowse: no horizontal overflow at 320px",
+    "status": "PASS"
+  },
+  {
+    "name": "No runtime exceptions during interaction checks",
+    "status": "PASS"
+  }
+]

@@ -62,17 +62,18 @@ function AuthEffects({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
 
   // Bridge Clerk session into Supabase via Third-Party Auth.
-  // Registers a per-request token getter that the supabase client's fetch
-  // interceptor calls; Clerk caches + rotates the session JWT. Supabase
+  // Register before child effects fetch the profile. The Supabase accessToken
+  // callback uses Clerk's cached, automatically rotated session JWT. Supabase
   // verifies the RS256 signature against Clerk's JWKS (TPA provider must
   // be registered in the Supabase dashboard for this domain).
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!isLoaded) return;
     if (isSignedIn) {
       setSupabaseTokenGetter(() => getToken());
     } else {
       setSupabaseTokenGetter(null);
     }
+    return () => setSupabaseTokenGetter(null);
   }, [isSignedIn, isLoaded, getToken]);
 
   React.useEffect(() => {

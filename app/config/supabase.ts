@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import * as Updates from 'expo-updates';
 import { Database } from '../types/database';
 import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -34,13 +33,8 @@ if (STRIPE_PUBLISHABLE_KEY.startsWith('pk_test_') && !__DEV__) {
   console.error(msg);
 }
 
-// Clerk integration (Supabase Third-Party Auth):
-// ClerkProviderWrapper registers a token getter here. The fetch interceptor
-// below attaches a fresh Clerk session JWT (RS256) as Authorization: Bearer
-// on every REST/RPC call. Supabase verifies the signature against Clerk's
-// JWKS — the Clerk domain must be registered under
-// Dashboard → Auth → Sign In/Providers → Third-Party Auth.
-// RLS policies match auth.jwt() ->> 'sub' to users.clerk_id.
+// Use Clerk session tokens for REST, Storage, Functions, and Realtime.
+// AuthEffects registers the getter before descendant effects request profiles.
 type TokenGetter = () => Promise<string | null>;
 let clerkTokenGetter: TokenGetter | null = null;
 
@@ -49,54 +43,7 @@ export function setSupabaseTokenGetter(getter: TokenGetter | null) {
 }
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: false,        // Clerk owns auth + token rotation.
-    persistSession: false,
-    detectSessionInUrl: false,
-  },
-  global: {
-    fetch: async (input, init = {}) => {
-      const headers = new Headers(init.headers ?? {});
-      const url = typeof input === 'string' ? input : (input as Request).url;
-      const isFn = url.includes('/functions/v1/');
-      let tokenInfo: { hasGetter: boolean; tokenLen: number; iss?: string; kid?: string } = { hasGetter: !!clerkTokenGetter, tokenLen: 0 };
-      try {
-        if (clerkTokenGetter) {
-          const token = await clerkTokenGetter();
-          if (token) {
-            headers.set('Authorization', `Bearer ${token}`);
-            tokenInfo.tokenLen = token.length;
-            if (isFn) {
-              try {
-                const [h, p] = token.split('.');
-                const head = JSON.parse(atob(h.replace(/-/g, '+').replace(/_/g, '/')));
-                const payload = JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/')));
-                tokenInfo.iss = payload.iss;
-                tokenInfo.kid = head.kid;
-                (tokenInfo as any).alg = head.alg;
-                (tokenInfo as any).aud = payload.aud;
-                (tokenInfo as any).azp = payload.azp;
-                (tokenInfo as any).role = payload.role;
-                (tokenInfo as any).exp = payload.exp;
-                (tokenInfo as any).expiresInSec = payload.exp - Math.floor(Date.now() / 1000);
-              } catch {}
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('supabase: clerkTokenGetter failed', e);
-      }
-      if (!headers.has('apikey')) {
-        headers.set('apikey', SUPABASE_ANON_KEY);
-      }
-      if (isFn) {
-        const fnName = url.split('/functions/v1/')[1]?.split('?')[0];
-        logger.debug('Supabase', `🔐 fn auth ${fnName}`, tokenInfo);
-      }
-      return fetch(input as RequestInfo, { ...init, headers });
-    },
-  },
+  accessToken: async () => clerkTokenGetter ? clerkTokenGetter() : null,
 });
 
 // ─── Auto-instrumentation ────────────────────────────────────────────────

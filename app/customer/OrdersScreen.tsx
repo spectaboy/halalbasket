@@ -1,3 +1,4 @@
+import { fonts } from '../../constants/typography';
 // HalalBasket — customer Orders tab: active orders (live tap-through to
 // tracking) and past orders with reorder + rate actions.
 
@@ -10,6 +11,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +19,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { lightColors, spacing } from '../../constants/theme';
 import { supabase } from '../config/supabase';
+import { useDemo } from '../demo/DemoContext';
+import { demoListings, demoSellers, isDemoId } from '../demo/catalog';
+import { marketplaceImage } from '../demo/images';
 import { useSession } from '../context/SessionContext';
 import { useCart } from '../context/CartContext';
 import { notify } from '../lib/notify';
@@ -34,10 +39,18 @@ type OrderWithMeta = OrderRow & {
 };
 
 const ACTIVE_STATUSES = new Set([
-  'pending_payment', 'paid', 'accepted', 'preparing', 'ready', 'driver_assigned', 'picked_up', 'en_route',
+  'pending_payment',
+  'paid',
+  'accepted',
+  'preparing',
+  'ready',
+  'driver_assigned',
+  'picked_up',
+  'en_route',
 ]);
 
 export default function OrdersScreen() {
+  const demo = useDemo();
   const navigation = useNavigation<Nav>();
   const { user } = useSession();
   const cart = useCart();
@@ -46,6 +59,12 @@ export default function OrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    if (demo.enabled) {
+      setOrders(demo.orders);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     if (!user) return;
     const { data, error } = await supabase
       .from('orders')
@@ -57,22 +76,31 @@ export default function OrdersScreen() {
     if (!error && data) setOrders(data as unknown as OrderWithMeta[]);
     setLoading(false);
     setRefreshing(false);
-  }, [user]);
+  }, [user, demo.enabled, demo.orders]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
-    }, [load])
+    }, [load]),
   );
 
   const reorder = async (order: OrderWithMeta) => {
+    if (order.pre_order_window_id) {
+      navigation.navigate('SellerDetail', { sellerId: order.seller_id });
+      notify.info('Choose an open meal drop for your next order.');
+      return;
+    }
     const listingIds = order.order_items.map((i) => i.listing_id).filter(Boolean) as string[];
     if (listingIds.length === 0) {
       notify.error('Those items are no longer available.');
       return;
     }
-    const { data } = await supabase.from('visible_listings').select('*').in('id', listingIds);
-    const listings = (data ?? []) as VisibleListingRow[];
+    const { data } = demo.enabled
+      ? { data: demoListings.filter((l) => listingIds.includes(l.id)) }
+      : await supabase.from('visible_listings').select('*').in('id', listingIds);
+    const listings = ((data ?? []) as VisibleListingRow[]).filter(
+      (l) => l.is_available && !l.sold_out && l.is_open,
+    );
     if (listings.length === 0) {
       notify.error('Those items are no longer available.');
       return;
@@ -82,26 +110,45 @@ export default function OrdersScreen() {
       sellerType: listings[0].seller_type,
       businessName: order.sellers?.business_name ?? '',
     };
-    cart.clearCart();
-    for (const listing of listings) {
-      cart.addItem(listing, sellerInfo);
-      const wanted = order.order_items.find((i) => i.listing_id === listing.id)?.quantity ?? 1;
-      if (wanted > 1) cart.setQuantity(listing.id, wanted);
-    }
-    if (listings.length < listingIds.length) {
-      notify.info('Some items were unavailable and were skipped.');
-    }
-    navigation.navigate('Cart');
+    const restore = () => {
+      cart.restoreCart(
+        listings.map((listing) => ({
+          listing,
+          quantity: Math.min(
+            99,
+            order.order_items.find((i) => i.listing_id === listing.id)?.quantity ?? 1,
+          ),
+        })),
+        sellerInfo,
+      );
+      if (listings.length < listingIds.length)
+        notify.info('Some items were unavailable and were skipped.');
+      navigation.navigate('Cart');
+    };
+    if (cart.itemCount)
+      notify.confirm({
+        title: 'Replace your basket?',
+        message: 'Add this previous order to a fresh basket?',
+        confirmText: 'Reorder',
+        cancelText: 'Keep basket',
+        onConfirm: restore,
+      });
+    else restore();
   };
 
   const renderOrder = ({ item }: { item: OrderWithMeta }) => {
     const active = ACTIVE_STATUSES.has(item.status);
-    const shortCode = item.id.replace(/-/g, '').slice(0, 8).toUpperCase();
+    const shortCode = (
+      isDemoId(item.id) ? item.id.slice(-8) : item.id.replace(/-/g, '').slice(0, 8)
+    ).toUpperCase();
     const itemsSummary = item.order_items
       .map((i) => `${i.quantity}× ${i.name}`)
       .slice(0, 3)
       .join(', ');
     const hasReview = (item.reviews?.length ?? 0) > 0;
+    const photo = demo.enabled
+      ? demoSellers.find((s) => s.id === item.seller_id)?.banner_url
+      : null;
 
     return (
       <TouchableOpacity
@@ -109,25 +156,53 @@ export default function OrdersScreen() {
         activeOpacity={0.85}
         onPress={() => navigation.navigate('OrderTracking', { orderId: item.id })}
       >
+        {photo && (
+          <Image
+            source={marketplaceImage(photo)}
+            style={{
+              width: '100%',
+              height: active ? 180 : 130,
+              borderRadius: 16,
+              marginBottom: 10,
+            }}
+          />
+        )}
         <View style={styles.cardHeader}>
           <Text style={styles.sellerName} numberOfLines={1}>
             {item.sellers?.business_name ?? 'Seller'}
           </Text>
           <View style={[styles.statusChip, active ? styles.statusActive : styles.statusDone]}>
-            <Text style={[styles.statusText, active ? styles.statusTextActive : styles.statusTextDone]}>
+            <Text
+              style={[styles.statusText, active ? styles.statusTextActive : styles.statusTextDone]}
+            >
               {ORDER_STATUS_LABELS[item.status]}
             </Text>
           </View>
         </View>
-        <Text style={styles.itemsSummary} numberOfLines={1}>{itemsSummary}</Text>
+        {active && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10 }}>
+            <Ionicons name="bicycle-outline" size={21} color={lightColors.primary} />
+            <Text style={styles.actionText}>Follow your order</Text>
+            <Ionicons name="arrow-forward" size={17} color={lightColors.primary} />
+          </View>
+        )}
+        <Text style={styles.itemsSummary} numberOfLines={1}>
+          {itemsSummary}
+        </Text>
         <View style={styles.cardFooter}>
-          <Text style={styles.meta}>#{shortCode} · {new Date(item.placed_at).toLocaleDateString()}</Text>
+          <Text style={styles.meta}>
+            #{shortCode} · {new Date(item.placed_at).toLocaleDateString()}
+          </Text>
           <Text style={styles.total}>{formatMoney(item.total)}</Text>
         </View>
 
         {item.status === 'delivered' && (
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85} onPress={() => void reorder(item)}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              activeOpacity={0.85}
+              onPress={() => void reorder(item)}
+            >
               <Ionicons name="repeat" size={15} color={lightColors.primary} />
               <Text style={styles.actionText}>Reorder</Text>
             </TouchableOpacity>
@@ -208,8 +283,8 @@ const styles = StyleSheet.create({
     backgroundColor: lightColors.background,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 32,
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
@@ -224,7 +299,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
     marginTop: 8,
   },
@@ -238,7 +313,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -262,8 +337,8 @@ const styles = StyleSheet.create({
   },
   sellerName: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 19,
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   statusChip: {
@@ -279,7 +354,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   statusTextActive: {
     color: lightColors.primary,
@@ -303,7 +378,7 @@ const styles = StyleSheet.create({
   },
   total: {
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   actionsRow: {
@@ -322,7 +397,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.primary,
   },
 });

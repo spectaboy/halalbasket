@@ -1,3 +1,4 @@
+import { fonts } from '../../constants/typography';
 // HalalBasket — seller storefront. Restaurants/butchers get a grouped menu with
 // instant add-to-basket; home cooks get their open pre-order windows (meal drops).
 
@@ -17,6 +18,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { lightColors, spacing } from '../../constants/theme';
 import type { MainStackParamList } from '../navigation/types';
 import { supabase } from '../config/supabase';
+import { useDemo } from '../demo/DemoContext';
+import { demoSellers, demoListings } from '../demo/catalog';
+import { marketplaceImage } from '../demo/images';
 import { logger } from '../utils/logger';
 import { notify } from '../lib/notify';
 import { useCart, type CartSellerInfo } from '../context/CartContext';
@@ -34,7 +38,7 @@ interface WindowWithProgress extends PreOrderWindowRow {
 const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 const todayHoursLabel = (
-  openHours: Record<string, { open: string; close: string } | null> | null | undefined
+  openHours: Record<string, { open: string; close: string } | null> | null | undefined,
 ): string | null => {
   if (!openHours) return null;
   const today = openHours[DAY_KEYS[new Date().getDay()]];
@@ -60,6 +64,7 @@ const cutoffCountdown = (cutoffIso: string): string => {
 };
 
 export default function SellerDetailScreen({ navigation, route }: Props) {
+  const demo = useDemo();
   const { sellerId } = route.params;
   const insets = useSafeAreaInsets();
   const { addItem, replaceCart, itemCount, subtotal, seller: cartSeller } = useCart();
@@ -73,6 +78,19 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
   const fetchAll = useCallback(async () => {
     try {
       setError(null);
+      if (demo.enabled) {
+        setSeller(demoSellers.find((s) => s.id === sellerId) ?? null);
+        setListings(demoListings.filter((l) => l.seller_id === sellerId));
+        setWindows(
+          demo.windows
+            .filter((w) => w.seller_id === sellerId)
+            .map((w) => ({
+              ...w,
+              orderCount: 7 + demo.orders.filter((o) => o.pre_order_window_id === w.id).length,
+            })),
+        );
+        return;
+      }
       const { data: sellerRow, error: sErr } = await supabase
         .from('public_sellers')
         .select('*')
@@ -113,7 +131,7 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
               .eq('pre_order_window_id', w.id)
               .neq('status', 'cancelled');
             return { ...w, orderCount: count ?? 0 };
-          })
+          }),
         );
         setWindows(withCounts);
       }
@@ -121,7 +139,7 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
       logger.error('SellerDetail', 'fetch failed', { sellerId, error: e?.message });
       setError('We could not load this seller. Please try again.');
     }
-  }, [sellerId]);
+  }, [sellerId, demo.enabled, demo.windows, demo.orders]);
 
   useEffect(() => {
     (async () => {
@@ -144,6 +162,10 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
 
   const handleAdd = (listing: VisibleListingRow) => {
     if (!seller) return;
+    if (!seller.is_open) {
+      notify.info('This seller is closed right now. Browse another favourite.');
+      return;
+    }
     if (listing.sold_out) {
       notify.warning('This item is sold out right now.');
       return;
@@ -201,24 +223,36 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
   }
 
   const isHomeCook = seller.seller_type === 'home_cook';
-  const hoursLabel = todayHoursLabel(seller.open_hours);
+  const hoursLabel = demo.enabled
+    ? seller.is_open
+      ? `${seller.prep_time_mins}–${(seller.prep_time_mins ?? 25) + 10} min`
+      : null
+    : todayHoursLabel(seller.open_hours);
 
   const renderListingRow = (listing: VisibleListingRow) => (
     <TouchableOpacity
       key={listing.id}
       style={styles.itemRow}
       activeOpacity={0.85}
-      onPress={() => navigation.navigate('ListingDetail', { listingId: listing.id, sellerId: seller.id })}
+      accessibilityLabel={`View ${listing.name}`}
+      onPress={() =>
+        isHomeCook && windows.length
+          ? navigation.navigate('PreOrderWindowDetail', {
+              windowId: windows[0].id,
+              sellerId: seller.id,
+            })
+          : navigation.navigate('ListingDetail', { listingId: listing.id, sellerId: seller.id })
+      }
     >
       {listing.image_url ? (
-        <Image source={{ uri: listing.image_url }} style={styles.itemImage} />
+        <Image source={marketplaceImage(listing.image_url)} style={styles.itemImage} />
       ) : (
         <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
           <Ionicons name="fast-food-outline" size={22} color={lightColors.primary} />
         </View>
       )}
       <View style={styles.itemBody}>
-        <Text style={styles.itemName} numberOfLines={1}>
+        <Text style={styles.itemName} numberOfLines={2}>
           {listing.name}
         </Text>
         {!!listing.description && (
@@ -242,8 +276,13 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
       </View>
       {!isHomeCook && (
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`Add ${listing.name}`}
           style={[styles.addBtn, listing.sold_out && styles.addBtnDisabled]}
-          onPress={() => handleAdd(listing)}
+          onPress={(event) => {
+            event.stopPropagation();
+            handleAdd(listing);
+          }}
           disabled={listing.sold_out}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -262,7 +301,7 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
         {/* ── Banner header ── */}
         <View style={styles.bannerWrap}>
           {seller.banner_url ? (
-            <Image source={{ uri: seller.banner_url }} style={styles.banner} />
+            <Image source={marketplaceImage(seller.banner_url)} style={styles.banner} />
           ) : (
             <View style={[styles.banner, styles.bannerPlaceholder]}>
               <Ionicons name="leaf" size={40} color={lightColors.primary} />
@@ -280,7 +319,7 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
         <View style={styles.infoCard}>
           <View style={styles.infoTitleRow}>
             {seller.logo_url ? (
-              <Image source={{ uri: seller.logo_url }} style={styles.logo} />
+              <Image source={marketplaceImage(seller.logo_url)} style={styles.logo} />
             ) : (
               <View style={[styles.logo, styles.logoPlaceholder]}>
                 <Ionicons name="leaf" size={20} color={lightColors.primary} />
@@ -354,7 +393,10 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
                     style={styles.windowCard}
                     activeOpacity={0.85}
                     onPress={() =>
-                      navigation.navigate('PreOrderWindowDetail', { windowId: w.id, sellerId: seller.id })
+                      navigation.navigate('PreOrderWindowDetail', {
+                        windowId: w.id,
+                        sellerId: seller.id,
+                      })
                     }
                   >
                     <View style={styles.windowTitleRow}>
@@ -408,6 +450,7 @@ export default function SellerDetailScreen({ navigation, route }: Props) {
       {/* ── Sticky basket bar ── */}
       {itemCount > 0 && (
         <TouchableOpacity
+          accessibilityLabel="View basket"
           style={[styles.basketBar, { bottom: insets.bottom + 12 }]}
           activeOpacity={0.9}
           onPress={() => navigation.navigate('Cart')}
@@ -440,8 +483,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
@@ -457,7 +500,7 @@ const styles = StyleSheet.create({
   },
   banner: {
     width: '100%',
-    height: 180,
+    height: 245,
     backgroundColor: lightColors.inputBg,
   },
   bannerPlaceholder: {
@@ -481,9 +524,9 @@ const styles = StyleSheet.create({
     gap: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0,
     shadowRadius: 10,
-    elevation: 4,
+    elevation: 0,
   },
   infoTitleRow: {
     flexDirection: 'row',
@@ -505,8 +548,8 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   sellerName: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 26,
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   metaRow: {
@@ -516,13 +559,13 @@ const styles = StyleSheet.create({
   },
   rating: {
     fontSize: 13.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   ratingCount: {
     fontSize: 12.5,
     color: lightColors.textMuted,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   tagsRow: {
     flexDirection: 'row',
@@ -538,7 +581,7 @@ const styles = StyleSheet.create({
   tagText: {
     color: lightColors.primary,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   statusRow: {
     flexDirection: 'row',
@@ -555,7 +598,7 @@ const styles = StyleSheet.create({
   openChipText: {
     color: lightColors.primary,
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   closedChip: {
     backgroundColor: '#F4F4F4',
@@ -575,7 +618,7 @@ const styles = StyleSheet.create({
   preOrderBadgeText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
   },
   hoursChip: {
     flexDirection: 'row',
@@ -589,7 +632,7 @@ const styles = StyleSheet.create({
   hoursText: {
     color: lightColors.primary,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   description: {
     fontSize: 13.5,
@@ -603,7 +646,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     marginBottom: 12,
   },
@@ -639,7 +682,7 @@ const styles = StyleSheet.create({
   windowTitle: {
     flex: 1,
     fontSize: 15.5,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   windowMetaRow: {
@@ -650,7 +693,7 @@ const styles = StyleSheet.create({
   windowMeta: {
     fontSize: 12.5,
     color: lightColors.textMuted,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   progressWrap: {
     marginTop: 4,
@@ -669,7 +712,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.primary,
   },
 
@@ -679,7 +722,7 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
@@ -697,8 +740,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   itemImage: {
-    width: 64,
-    height: 64,
+    width: 90,
+    height: 96,
     borderRadius: 12,
     backgroundColor: lightColors.inputBg,
   },
@@ -712,7 +755,7 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   itemDesc: {
@@ -728,7 +771,7 @@ const styles = StyleSheet.create({
   },
   itemPrice: {
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.primary,
   },
   soldOutChip: {
@@ -740,7 +783,7 @@ const styles = StyleSheet.create({
   soldOutText: {
     color: lightColors.textMuted,
     fontSize: 10.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   dropsChip: {
     backgroundColor: lightColors.chipBg,
@@ -751,12 +794,12 @@ const styles = StyleSheet.create({
   dropsChipText: {
     color: lightColors.primary,
     fontSize: 10.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: lightColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -767,7 +810,7 @@ const styles = StyleSheet.create({
 
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     textAlign: 'center',
   },
@@ -780,7 +823,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
 
   // Sticky basket bar
@@ -813,17 +856,17 @@ const styles = StyleSheet.create({
   basketCountText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
   },
   basketBarText: {
     flex: 1,
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   basketBarTotal: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
   },
 });

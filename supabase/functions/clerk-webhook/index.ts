@@ -74,35 +74,6 @@ function primaryEmailOf(data: any): string | null {
   return primary?.email_address || list[0]?.email_address || null;
 }
 
-// "Students only" domain gate (F35). The client-side @ucalgary.ca regex on the
-// signup screen is trivially bypassable (drive Clerk's API directly), so the
-// eligibility guarantee must also be enforced here, on the primary VERIFIED
-// email, before we treat the account as a verified student.
-const ALLOWED_STUDENT_DOMAIN = "ucalgary.ca";
-
-function primaryEmailEntry(data: any): any | null {
-  const list = data.email_addresses || [];
-  return list.find((e: any) => e.id === data.primary_email_address_id) || list[0] || null;
-}
-
-/**
- * Return the primary email ONLY if it is a verified @ucalgary.ca address.
- * Returns null for any non-student domain or unverified email, so a non-student
- * never gets the students-only `university_email` flag set server-side.
- */
-function verifiedStudentEmailOf(data: any): string | null {
-  const primary = primaryEmailEntry(data);
-  const addr: string = primary?.email_address || "";
-  if (!addr) return null;
-  if (!addr.trim().toLowerCase().endsWith(`@${ALLOWED_STUDENT_DOMAIN}`)) return null;
-  // Require Clerk-verified when the payload reports verification status. If the
-  // field is entirely absent (shape drift / test payloads) we accept on the
-  // domain match alone rather than locking out legitimate students.
-  const status = primary?.verification?.status;
-  if (status != null && status !== "verified") return null;
-  return addr;
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -163,21 +134,6 @@ serve(async (req) => {
       if (email) row.email = email;
       if (d.first_name) row.first_name = d.first_name;
       if (d.last_name) row.last_name = d.last_name;
-
-      // Server-side "students only" enforcement (F35). Only stamp the
-      // students-only `university_email` (which the app treats as the verified
-      // student signal, e.g. ProfileScreen emailVerified = Boolean(university_email))
-      // when the primary email is a verified @ucalgary.ca address. Non-student
-      // domains are flagged (logged) and left without the university_email so
-      // downstream eligibility checks never see them as verified students.
-      const studentEmail = verifiedStudentEmailOf(d);
-      if (studentEmail) {
-        row.university_email = studentEmail;
-      } else {
-        console.warn(
-          `clerk-webhook: ${clerkUserId} primary email is not a verified @${ALLOWED_STUDENT_DOMAIN} address — not marking as verified student`,
-        );
-      }
 
       // ignoreDuplicates => INSERT ... ON CONFLICT DO NOTHING. This ONLY creates
       // a missing row (the original bug: no users row -> 404). It never touches

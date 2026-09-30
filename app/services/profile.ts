@@ -7,7 +7,7 @@ import type { DriverRow, SellerRow, UserRole, UserRow } from '../types/database'
 
 export class ProfileService {
   /** Fetch (or lazily create) the app user row for the signed-in Clerk user. */
-  static async ensureUser(clerkId: string, email?: string | null): Promise<UserRow | null> {
+  static async ensureUser(clerkId: string, email?: string | null): Promise<UserRow> {
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -15,7 +15,7 @@ export class ProfileService {
       .maybeSingle();
     if (error) {
       logger.error('Profile', 'ensureUser select failed', { error: error.message });
-      return null;
+      throw error;
     }
     if (data) return data as UserRow;
 
@@ -25,21 +25,27 @@ export class ProfileService {
       .select('*')
       .single();
     if (insertError) {
+      // The Clerk webhook can create this row between our SELECT and INSERT.
+      if (insertError.code === '23505') {
+        const existing = await this.getUser(clerkId);
+        if (existing) return existing;
+      }
       logger.error('Profile', 'ensureUser insert failed', { error: insertError.message });
-      return null;
+      throw insertError;
     }
     return created as UserRow;
   }
 
   static async getUser(clerkId: string): Promise<UserRow | null> {
-    const { data } = await supabase.from('users').select('*').eq('clerk_id', clerkId).maybeSingle();
+    const { data, error } = await supabase.from('users').select('*').eq('clerk_id', clerkId).maybeSingle();
+    if (error) throw error;
     return (data as UserRow) ?? null;
   }
 
   static async updateUser(userId: string, updates: Partial<UserRow>): Promise<boolean> {
-    const { error } = await supabase.from('users').update(updates).eq('id', userId);
+    const { data, error } = await supabase.from('users').update(updates).eq('id', userId).select('id').maybeSingle();
     if (error) logger.error('Profile', 'updateUser failed', { error: error.message });
-    return !error;
+    return !error && !!data;
   }
 
   static async setRole(userId: string, role: UserRole): Promise<boolean> {
@@ -48,13 +54,15 @@ export class ProfileService {
 
   /** Seller record for a user (null if they never onboarded as a seller). */
   static async getSellerByUserId(userId: string): Promise<SellerRow | null> {
-    const { data } = await supabase.from('sellers').select('*').eq('user_id', userId).maybeSingle();
+    const { data, error } = await supabase.from('sellers').select('*').eq('user_id', userId).maybeSingle();
+    if (error) throw error;
     return (data as SellerRow) ?? null;
   }
 
   /** Driver record for a user (null if they never onboarded as a driver). */
   static async getDriverByUserId(userId: string): Promise<DriverRow | null> {
-    const { data } = await supabase.from('drivers').select('*').eq('user_id', userId).maybeSingle();
+    const { data, error } = await supabase.from('drivers').select('*').eq('user_id', userId).maybeSingle();
+    if (error) throw error;
     return (data as DriverRow) ?? null;
   }
 

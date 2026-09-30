@@ -16,7 +16,7 @@ export type AuthStackParamList = {
 // ---------- Customer ----------
 export type CustomerTabParamList = {
   Home: undefined;
-  Search: { initialQuery?: string } | undefined;
+  Search: { initialQuery?: string; savedOnly?: boolean } | undefined;
   Orders: undefined;
   Profile: undefined;
 };

@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -20,11 +21,13 @@ import { useAuth, useUser } from '@clerk/clerk-expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { lightColors } from '../../constants/theme';
-import BackgroundPattern from '../components/BackgroundPattern';
+import { fonts } from '../../constants/typography';
+import LoadingDots from '../components/ui/LoadingDots';
 import { FieldError, errorBorder, useInlineErrors } from '../components/ui/FieldError';
 import { ProfileService } from '../services/profile';
 import { useSession } from '../context/SessionContext';
 import { notify } from '../lib/notify';
+import { BrandWordmark } from '../components/ui/Discovery';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'CompleteProfile'>;
 
@@ -41,6 +44,7 @@ const CompleteProfileScreen = (_props: Props) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const { errors, setErrors, clearError } = useInlineErrors<Field>();
 
@@ -67,7 +71,7 @@ const CompleteProfileScreen = (_props: Props) => {
     try {
       const row = await ProfileService.ensureUser(
         userId,
-        clerkUser?.primaryEmailAddress?.emailAddress
+        clerkUser?.primaryEmailAddress?.emailAddress,
       );
       if (!row) {
         notify.error('Could not load your profile. Please try again.');
@@ -78,6 +82,7 @@ const CompleteProfileScreen = (_props: Props) => {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         phone: phone.trim(),
+        ...(address.trim() ? { default_address: address.trim() } : {}),
       });
       if (!ok) {
         notify.error('Could not save your details. Please try again.');
@@ -87,17 +92,21 @@ const CompleteProfileScreen = (_props: Props) => {
       notify.success(`Welcome to HalalBasket, ${firstName.trim()}!`);
       // Session refresh picks up the updated row; RootNavigator shows Main.
       await refresh();
+    } catch {
+      notify.error('Could not connect to your profile. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const isFormValid =
-    firstName.trim().length > 0 && lastName.trim().length > 0 && phoneDigits(phone).length >= 10;
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    phoneDigits(phone).length >= 10 &&
+    phoneDigits(phone).length <= 15;
 
   return (
     <SafeAreaView style={styles.container}>
-      <BackgroundPattern />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -107,64 +116,74 @@ const CompleteProfileScreen = (_props: Props) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Heading */}
+          <View style={styles.topBar}>
+            <BrandWordmark />
+          </View>
           <View style={styles.headingWrap}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="person-add-outline" size={36} color={lightColors.primary} />
+            <Text style={styles.title}>Make it yours</Text>
+            <Text style={styles.subtitle}>A few details to get you started.</Text>
+          </View>
+          <View style={styles.avatarWrap}>
+            {clerkUser?.hasImage ? (
+              <Image source={{ uri: clerkUser.imageUrl }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                {firstName ? (
+                  <Text style={styles.initial}>{firstName.charAt(0).toUpperCase()}</Text>
+                ) : (
+                  <Ionicons name="person-outline" size={48} color={lightColors.primary} />
+                )}
+              </View>
+            )}
+            <View style={styles.avatarBadge}>
+              <Ionicons name="leaf" size={18} color="#FFFFFF" />
             </View>
-            <Text style={styles.title}>Almost there</Text>
-            <Text style={styles.subtitle}>
-              Tell us a little about yourself so sellers and drivers know who they're serving.
-            </Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
-            <Text style={styles.label}>First name</Text>
-            <View style={[styles.inputRow, errorBorder(!!errors.firstName)]}>
-              <Ionicons
-                name="person-outline"
-                size={20}
-                color={errors.firstName ? lightColors.error : lightColors.textMuted}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="First name"
-                placeholderTextColor={lightColors.textMuted}
-                value={firstName}
-                onChangeText={(t) => {
-                  setFirstName(t);
-                  clearError('firstName');
-                }}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
+            <View style={styles.nameRow}>
+              <View style={styles.nameField}>
+                <Text style={styles.label}>First name</Text>
+                <View style={[styles.inputRow, errorBorder(!!errors.firstName)]}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="First name"
+                    accessibilityLabel="First name"
+                    autoComplete="given-name"
+                    placeholderTextColor={lightColors.textMuted}
+                    value={firstName}
+                    onChangeText={(t) => {
+                      setFirstName(t);
+                      clearError('firstName');
+                    }}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+                <FieldError message={errors.firstName} />
+              </View>
+              <View style={styles.nameField}>
+                <Text style={styles.label}>Last name</Text>
+                <View style={[styles.inputRow, errorBorder(!!errors.lastName)]}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Last name"
+                    accessibilityLabel="Last name"
+                    autoComplete="family-name"
+                    placeholderTextColor={lightColors.textMuted}
+                    value={lastName}
+                    onChangeText={(t) => {
+                      setLastName(t);
+                      clearError('lastName');
+                    }}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+                <FieldError message={errors.lastName} />
+              </View>
             </View>
-            <FieldError message={errors.firstName} />
-
-            <Text style={styles.label}>Last name</Text>
-            <View style={[styles.inputRow, errorBorder(!!errors.lastName)]}>
-              <Ionicons
-                name="person-outline"
-                size={20}
-                color={errors.lastName ? lightColors.error : lightColors.textMuted}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Last name"
-                placeholderTextColor={lightColors.textMuted}
-                value={lastName}
-                onChangeText={(t) => {
-                  setLastName(t);
-                  clearError('lastName');
-                }}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
-            <FieldError message={errors.lastName} />
 
             <Text style={styles.label}>Phone number</Text>
             <View style={[styles.inputRow, errorBorder(!!errors.phone)]}>
@@ -177,6 +196,8 @@ const CompleteProfileScreen = (_props: Props) => {
               <TextInput
                 style={styles.input}
                 placeholder="(555) 123-4567"
+                accessibilityLabel="Phone number"
+                autoComplete="tel"
                 placeholderTextColor={lightColors.textMuted}
                 value={phone}
                 onChangeText={(t) => {
@@ -187,22 +208,38 @@ const CompleteProfileScreen = (_props: Props) => {
               />
             </View>
             <FieldError message={errors.phone} />
-            <Text style={styles.hint}>
-              We only share your number with your driver during a delivery.
+            <Text style={styles.hint}>So your driver can reach you during delivery.</Text>
+            <Text style={styles.label}>
+              Delivery address <Text style={styles.optional}>(optional)</Text>
             </Text>
+            <View style={styles.inputRow}>
+              <Ionicons
+                name="location-outline"
+                size={20}
+                color={lightColors.textMuted}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                accessibilityLabel="Delivery address, optional"
+                placeholder="Street address, city"
+                placeholderTextColor={lightColors.textMuted}
+                value={address}
+                onChangeText={setAddress}
+                autoComplete="street-address"
+              />
+            </View>
 
             <TouchableOpacity
               style={[styles.primaryBtn, (!isFormValid || saving) && styles.primaryBtnDisabled]}
               onPress={handleSave}
               disabled={!isFormValid || saving}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !isFormValid || saving, busy: saving }}
               activeOpacity={0.85}
             >
-              <Text style={styles.primaryBtnText}>
-                {saving ? 'Saving…' : 'Start shopping'}
-              </Text>
-              {!saving && (
-                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
-              )}
+              {saving && <LoadingDots color="#FFFFFF" />}
+              <Text style={styles.primaryBtnText}>{saving ? 'Saving…' : 'Continue'}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -219,44 +256,67 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
     paddingBottom: 32,
   },
-  headingWrap: {
-    paddingHorizontal: 28,
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 32,
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  topBar: { padding: 24, alignItems: 'flex-end' },
+  nameRow: { flexDirection: 'row', gap: 12 },
+  nameField: { flex: 1, gap: 8 },
+  avatarWrap: { alignSelf: 'center', marginVertical: 28 },
+  avatar: { width: 128, height: 128, borderRadius: 64 },
+  avatarFallback: {
     backgroundColor: lightColors.chipBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+  },
+  initial: { fontFamily: fonts.extraBold, fontSize: 48, color: lightColors.primary },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 0,
+    backgroundColor: lightColors.primary,
+    borderRadius: 20,
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: lightColors.background,
+  },
+  optional: { fontFamily: fonts.regular, color: lightColors.textMuted },
+  headingWrap: {
+    paddingHorizontal: 24,
+    alignItems: 'flex-start',
+    marginTop: 16,
+    marginBottom: 0,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '800',
+    alignSelf: 'stretch',
+    textAlign: 'left',
+    fontSize: 32,
+    lineHeight: 40,
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     letterSpacing: -0.5,
     marginBottom: 8,
   },
   subtitle: {
+    fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     color: lightColors.textMuted,
-    textAlign: 'center',
+    textAlign: 'left',
     maxWidth: 300,
   },
   form: {
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     gap: 8,
   },
   label: {
     fontSize: 13.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
     marginTop: 8,
     marginLeft: 2,
@@ -264,12 +324,13 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: lightColors.inputBg,
+    backgroundColor: 'transparent',
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: lightColors.divider,
     paddingHorizontal: 14,
-    height: 54,
+    minHeight: 54,
+    paddingVertical: 8,
   },
   inputIcon: {
     marginRight: 10,
@@ -278,9 +339,10 @@ const styles = StyleSheet.create({
     flex: 1,
     color: lightColors.textDark,
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   hint: {
+    fontFamily: fonts.regular,
     fontSize: 12.5,
     lineHeight: 18,
     color: lightColors.textMuted,
@@ -288,28 +350,29 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   primaryBtn: {
+    gap: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: lightColors.primary,
-    borderRadius: 12,
+    borderRadius: 18,
     paddingVertical: 16,
-    marginTop: 20,
+    marginTop: 40,
     shadowColor: lightColors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 0,
   },
   primaryBtnDisabled: {
-    backgroundColor: '#C8DDD2',
+    backgroundColor: '#83968A',
     shadowOpacity: 0,
     elevation: 0,
   },
   primaryBtnText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
 });
 

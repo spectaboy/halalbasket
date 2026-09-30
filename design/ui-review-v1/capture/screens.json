@@ -1,0 +1,227 @@
+[
+  {
+    "name": "CompleteProfile",
+    "group": "auth",
+    "path": "../../../app/auth/CompleteProfileScreen.tsx"
+  },
+  {
+    "name": "SignIn",
+    "group": "auth",
+    "path": "../../../app/auth/SignInScreen.tsx"
+  },
+  {
+    "name": "SignUp",
+    "group": "auth",
+    "path": "../../../app/auth/SignUpScreen.tsx"
+  },
+  {
+    "name": "VerifyEmail",
+    "group": "auth",
+    "path": "../../../app/auth/VerifyEmailScreen.tsx"
+  },
+  {
+    "name": "Welcome",
+    "group": "auth",
+    "path": "../../../app/auth/WelcomeScreen.tsx"
+  },
+  {
+    "name": "Cart",
+    "group": "customer",
+    "path": "../../../app/customer/CartScreen.tsx"
+  },
+  {
+    "name": "CategoryBrowse",
+    "group": "customer",
+    "path": "../../../app/customer/CategoryBrowseScreen.tsx"
+  },
+  {
+    "name": "Checkout",
+    "group": "customer",
+    "path": "../../../app/customer/CheckoutScreen.tsx"
+  },
+  {
+    "name": "Home",
+    "group": "customer",
+    "path": "../../../app/customer/HomeScreen.tsx"
+  },
+  {
+    "name": "LeaveReview",
+    "group": "customer",
+    "path": "../../../app/customer/LeaveReviewScreen.tsx"
+  },
+  {
+    "name": "ListingDetail",
+    "group": "customer",
+    "path": "../../../app/customer/ListingDetailScreen.tsx"
+  },
+  {
+    "name": "OrderConfirmation",
+    "group": "customer",
+    "path": "../../../app/customer/OrderConfirmationScreen.tsx"
+  },
+  {
+    "name": "Orders",
+    "group": "customer",
+    "path": "../../../app/customer/OrdersScreen.tsx"
+  },
+  {
+    "name": "OrderTracking",
+    "group": "customer",
+    "path": "../../../app/customer/OrderTrackingScreen.tsx"
+  },
+  {
+    "name": "PreOrderWindowDetail",
+    "group": "customer",
+    "path": "../../../app/customer/PreOrderWindowDetailScreen.tsx"
+  },
+  {
+    "name": "Search",
+    "group": "customer",
+    "path": "../../../app/customer/SearchScreen.tsx"
+  },
+  {
+    "name": "SellerDetail",
+    "group": "customer",
+    "path": "../../../app/customer/SellerDetailScreen.tsx"
+  },
+  {
+    "name": "EditProfile",
+    "group": "profile",
+    "path": "../../../app/profile/EditProfileScreen.tsx"
+  },
+  {
+    "name": "Profile",
+    "group": "profile",
+    "path": "../../../app/profile/ProfileScreen.tsx"
+  },
+  {
+    "name": "StripeConnect",
+    "group": "profile",
+    "path": "../../../app/profile/StripeConnectScreen.tsx"
+  },
+  {
+    "name": "CreatePreOrderWindow",
+    "group": "seller",
+    "path": "../../../app/seller/CreatePreOrderWindowScreen.tsx"
+  },
+  {
+    "name": "EditListing",
+    "group": "seller",
+    "path": "../../../app/seller/EditListingScreen.tsx"
+  },
+  {
+    "name": "SellerCompliance",
+    "group": "seller",
+    "path": "../../../app/seller/SellerComplianceScreen.tsx"
+  },
+  {
+    "name": "SellerDashboard",
+    "group": "seller",
+    "path": "../../../app/seller/SellerDashboardScreen.tsx"
+  },
+  {
+    "name": "SellerEarnings",
+    "group": "seller",
+    "path": "../../../app/seller/SellerEarningsScreen.tsx"
+  },
+  {
+    "name": "SellerListings",
+    "group": "seller",
+    "path": "../../../app/seller/SellerListingsScreen.tsx"
+  },
+  {
+    "name": "SellerOnboarding",
+    "group": "seller",
+    "path": "../../../app/seller/SellerOnboardingScreen.tsx"
+  },
+  {
+    "name": "SellerOrderDetail",
+    "group": "seller",
+    "path": "../../../app/seller/SellerOrderDetailScreen.tsx"
+  },
+  {
+    "name": "SellerOrders",
+    "group": "seller",
+    "path": "../../../app/seller/SellerOrdersScreen.tsx"
+  },
+  {
+    "name": "SellerProfile",
+    "group": "seller",
+    "path": "../../../app/seller/SellerProfileScreen.tsx"
+  },
+  {
+    "name": "SellerVerificationPending",
+    "group": "seller",
+    "path": "../../../app/seller/SellerVerificationPendingScreen.tsx"
+  },
+  {
+    "name": "ActiveDelivery",
+    "group": "driver",
+    "path": "../../../app/driver/ActiveDeliveryScreen.tsx"
+  },
+  {
+    "name": "DriverDeliveries",
+    "group": "driver",
+    "path": "../../../app/driver/DriverDeliveriesScreen.tsx"
+  },
+  {
+    "name": "DriverEarnings",
+    "group": "driver",
+    "path": "../../../app/driver/DriverEarningsScreen.tsx"
+  },
+  {
+    "name": "DriverHome",
+    "group": "driver",
+    "path": "../../../app/driver/DriverHomeScreen.tsx"
+  },
+  {
+    "name": "DriverOnboarding",
+    "group": "driver",
+    "path": "../../../app/driver/DriverOnboardingScreen.tsx"
+  },
+  {
+    "name": "DriverProfile",
+    "group": "driver",
+    "path": "../../../app/driver/DriverProfileScreen.tsx"
+  },
+  {
+    "name": "DriverVerificationPending",
+    "group": "driver",
+    "path": "../../../app/driver/DriverVerificationPendingScreen.tsx"
+  },
+  {
+    "name": "AdminDashboard",
+    "group": "admin",
+    "path": "../../../app/admin/AdminDashboardScreen.tsx"
+  },
+  {
+    "name": "AdminDriverReview",
+    "group": "admin",
+    "path": "../../../app/admin/AdminDriverReviewScreen.tsx"
+  },
+  {
+    "name": "AdminDrivers",
+    "group": "admin",
+    "path": "../../../app/admin/AdminDriversScreen.tsx"
+  },
+  {
+    "name": "AdminOrderDetail",
+    "group": "admin",
+    "path": "../../../app/admin/AdminOrderDetailScreen.tsx"
+  },
+  {
+    "name": "AdminOrders",
+    "group": "admin",
+    "path": "../../../app/admin/AdminOrdersScreen.tsx"
+  },
+  {
+    "name": "AdminSellerReview",
+    "group": "admin",
+    "path": "../../../app/admin/AdminSellerReviewScreen.tsx"
+  },
+  {
+    "name": "AdminSellers",
+    "group": "admin",
+    "path": "../../../app/admin/AdminSellersScreen.tsx"
+  }
+]

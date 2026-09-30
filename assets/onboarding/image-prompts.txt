@@ -1,0 +1,13 @@
+HalalBasket onboarding photos
+Created with the built-in image generation tool.
+
+restaurant.png and home-cooking.png:
+The original approved photographs and prompts are retained in
+design/welcome-v1/assets/image-prompts.txt.
+
+butchers-and-farms.png:
+Use case: photorealistic-natural. Asset type: HalalBasket mobile onboarding hero photo, butchers and farms slide. Create a premium natural editorial food photograph, square composition, suitable for a rounded rectangular mobile crop. On a warm cream limestone kitchen counter, a neatly presented fresh uncooked beef steak and lamb chops resting on clean brown butcher paper in a shallow cream ceramic tray at center-left, with a paper market bag of vivid tomatoes, carrots and leafy herbs at upper right. A folded deep forest green linen napkin subtly anchors the lower edge. Soft warm window daylight, appetizing honest natural textures, gentle film grain, sophisticated food magazine photography, shallow but useful depth of field, warm ivory and forest green palette, close camera at 40 degree overhead angle. No people, no hands, no blood, no pork, no alcohol, no labels, no typography, no logos, no certification symbols. The meat and produce are the clear focal point; avoid clutter. Match a premium friendly neighborhood halal food marketplace.
+
+Typography: Manrope from https://github.com/google/fonts/tree/main/ofl/manrope
+Bundled static weights 400, 500, 600, 700, 800 were instantiated from the
+official variable font with fontTools. License: ../fonts/OFL.txt.

@@ -1,3 +1,4 @@
+import { fonts } from '../../constants/typography';
 // HalalBasket — post-delivery review modal: tappable stars + optional comment.
 
 import React, { useState } from 'react';
@@ -16,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { lightColors, spacing } from '../../constants/theme';
 import { supabase } from '../config/supabase';
+import { useDemo } from '../demo/DemoContext';
+import { isDemoId } from '../demo/catalog';
 import { useSession } from '../context/SessionContext';
 import { notify } from '../lib/notify';
 import type { MainStackParamList } from '../navigation/types';
@@ -25,6 +28,7 @@ type Props = NativeStackScreenProps<MainStackParamList, 'LeaveReview'>;
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
 
 export default function LeaveReviewScreen({ navigation, route }: Props) {
+  const demo = useDemo();
   const { orderId, sellerId, sellerName } = route.params;
   const { user } = useSession();
   const [rating, setRating] = useState(0);
@@ -33,6 +37,20 @@ export default function LeaveReviewScreen({ navigation, route }: Props) {
 
   const submit = async () => {
     if (!user || rating < 1) return;
+    if (isDemoId(orderId)) {
+      try {
+        demo.reviewOrder(orderId, rating, comment);
+        notify.success('Review saved on this device.');
+        navigation.goBack();
+      } catch (e: any) {
+        notify.error(e.message);
+      }
+      return;
+    }
+    if (demo.enabled) {
+      notify.error('This order cannot be reviewed in the preview marketplace.');
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.from('reviews').insert({
       order_id: orderId,
@@ -46,7 +64,7 @@ export default function LeaveReviewScreen({ navigation, route }: Props) {
       notify.error(
         error.message.includes('duplicate')
           ? 'You already reviewed this order.'
-          : 'Could not submit your review. Try again.'
+          : 'Could not submit your review. Try again.',
       );
       return;
     }
@@ -58,7 +76,7 @@ export default function LeaveReviewScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
@@ -73,7 +91,13 @@ export default function LeaveReviewScreen({ navigation, route }: Props) {
 
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity key={star} onPress={() => setRating(star)} activeOpacity={0.7}>
+              <TouchableOpacity
+                key={star}
+                accessibilityRole="button"
+                accessibilityLabel={`Rate ${star} stars`}
+                onPress={() => setRating(star)}
+                activeOpacity={0.7}
+              >
                 <Ionicons
                   name={star <= rating ? 'star' : 'star-outline'}
                   size={44}
@@ -131,14 +155,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   closeBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   content: {
@@ -149,7 +173,7 @@ const styles = StyleSheet.create({
   },
   prompt: {
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     textAlign: 'center',
     marginTop: spacing.lg,
@@ -161,7 +185,7 @@ const styles = StyleSheet.create({
   },
   ratingLabel: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.primary,
     minHeight: 20,
   },
@@ -192,6 +216,6 @@ const styles = StyleSheet.create({
   submitText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
 });

@@ -1,0 +1,10 @@
+Built-in image_gen tool. Fictional marketplace imagery, not photographs of actual sellers.
+
+curry.png
+Photorealistic editorial food photography for a halal food delivery app sample menu: a generous ceramic bowl of homestyle chicken curry in rich orange tomato sauce, finished with coriander and a light cream swirl. Visible tender chicken pieces. A small side bowl of fluffy basmati rice and warm flatbread partly visible in the background. Warm natural window light, cream linen and dark wooden table, appetizing authentic textures. Landscape 3:2 composition, curry bowl centered fully visible with enough margin for square thumbnail and wide banner crops. No text, branding, UI, watermark, pork or alcohol.
+
+burger.png
+Photorealistic premium food photography for a halal food delivery app sample menu. A generous double smashed beef cheeseburger, crisp lettuce, tomato, pickles and melted cheddar inside a glossy toasted brioche bun, with golden fries on parchment on a warm dark wooden table. No bacon, no pork, no alcohol. Soft natural window light, editorial food magazine quality, appealing authentic textures, shallow depth of field. Landscape 3:2 composition, burger centered fully visible with comfortable breathing room for both square thumbnail and wide banner crops. No text, branding, UI or watermark.
+
+baklava.png
+Photorealistic premium food photography for a halal bakery sample menu. Beautiful flaky pistachio baklava diamonds in a cream ceramic plate, honey glaze and bright crushed pistachios, a few scattered pistachios on warm light stone table. Soft natural window light, editorial food magazine quality, realistic textures. Landscape 3:2 composition, food centered fully visible with comfortable breathing room for both square thumbnail and wide banner crops. No text, branding, UI or watermark.

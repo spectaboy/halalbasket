@@ -1,19 +1,34 @@
+import { fonts } from '../../constants/typography';
 // HalalBasket — order confirmation. Animated success check, short order code,
 // and hand-off to live tracking.
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  Easing,
+  Image,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { lightColors, spacing } from '../../constants/theme';
 import type { MainStackParamList } from '../navigation/types';
 import BackgroundPattern from '../components/BackgroundPattern';
+import { isDemoId } from '../demo/catalog';
+import { useDemo } from '../demo/DemoContext';
+import { marketplaceImage } from '../demo/images';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'OrderConfirmation'>;
 
 export default function OrderConfirmationScreen({ navigation, route }: Props) {
   const { orderId } = route.params;
+  const demo = useDemo();
+  const order = demo.orders.find((o) => o.id === orderId);
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -34,27 +49,39 @@ export default function OrderConfirmationScreen({ navigation, route }: Props) {
     ]).start();
   }, [scaleAnim, fadeAnim]);
 
-  const shortCode = orderId.replace(/-/g, '').slice(0, 8).toUpperCase();
+  const shortCode = (
+    isDemoId(orderId) ? orderId.slice(-8) : orderId.replace(/-/g, '').slice(0, 8)
+  ).toUpperCase();
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <BackgroundPattern />
-      <View style={styles.content}>
+      {!isDemoId(orderId) && <BackgroundPattern />}
+      <ScrollView contentContainerStyle={[styles.content, { flexGrow: 1, flex: undefined }]}>
+        {order?.sellers.banner_url && (
+          <Image
+            source={marketplaceImage(order.sellers.banner_url)}
+            style={{ width: '100%', height: 220, borderRadius: 24 }}
+          />
+        )}
         <Animated.View style={[styles.checkWrap, { transform: [{ scale: scaleAnim }] }]}>
-          <Ionicons name="checkmark-circle" size={128} color={lightColors.primary} />
+          <Ionicons name="checkmark-circle" size={80} color={lightColors.primary} />
         </Animated.View>
 
         <Animated.View style={[styles.textBlock, { opacity: fadeAnim }]}>
-          <Text style={styles.title}>Order placed!</Text>
+          <Text style={styles.title}>
+            Order placed!
+          </Text>
           <Text style={styles.subtitle}>
-            Your halal order is confirmed and the seller has been notified.
+            {isDemoId(orderId)
+              ? 'Your order is ready to track. No payment was taken.'
+              : 'Your halal order is confirmed and the seller has been notified.'}
           </Text>
           <View style={styles.codeChip}>
             <Text style={styles.codeLabel}>ORDER</Text>
             <Text style={styles.codeValue}>#{shortCode}</Text>
           </View>
         </Animated.View>
-      </View>
+      </ScrollView>
 
       <View style={styles.actions}>
         <TouchableOpacity
@@ -100,7 +127,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     letterSpacing: -0.3,
   },
@@ -123,13 +150,13 @@ const styles = StyleSheet.create({
   },
   codeLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textMuted,
     letterSpacing: 1,
   },
   codeValue: {
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.primary,
     letterSpacing: 0.5,
   },
@@ -149,7 +176,7 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   secondaryBtn: {
     alignItems: 'center',
@@ -163,6 +190,6 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     color: lightColors.primary,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
 });

@@ -5,7 +5,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Image,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,14 +15,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useSignUp } from '@clerk/clerk-expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { lightColors } from '../../constants/theme';
-import BackgroundPattern from '../components/BackgroundPattern';
+import { fonts } from '../../constants/typography';
+import LoadingDots from '../components/ui/LoadingDots';
 import { FieldError, errorBorder, useInlineErrors } from '../components/ui/FieldError';
 import { notify } from '../lib/notify';
+import { BackButton, BrandWordmark, discoveryImages } from '../components/ui/Discovery';
 
 const CODE_LENGTH = 6;
 const RESEND_COOLDOWN_S = 60;
@@ -123,75 +126,85 @@ const VerifyEmailScreen = ({ navigation, route }: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <BackgroundPattern />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.inner}
       >
-        {/* Back */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={lightColors.primary} />
-        </TouchableOpacity>
-
-        <View style={styles.content}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="mail-unread-outline" size={40} color={lightColors.primary} />
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.topBar}>
+            <BackButton onPress={() => navigation.goBack()} />
+            <BrandWordmark />
           </View>
 
-          <Text style={styles.title}>Check your email</Text>
-          <Text style={styles.subtitle}>We've sent a 6-digit verification code to</Text>
-          <Text style={styles.email}>{email}</Text>
+          <View style={styles.content}>
+            <Image
+              source={discoveryImages.email}
+              style={styles.illustration}
+              resizeMode="contain"
+            />
 
-          {/* OTP boxes */}
-          <View style={styles.otpContainer}>
-            {otp.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => {
-                  inputRefs.current[index] = ref;
-                }}
-                style={[
-                  styles.otpInput,
-                  digit !== '' && styles.otpInputFilled,
-                  errorBorder(!!errors.code),
-                ]}
-                value={digit}
-                onChangeText={(text) => handleOtpChange(text, index)}
-                onKeyPress={(e) => handleKeyPress(e, index)}
-                keyboardType="number-pad"
-                maxLength={index === 0 ? CODE_LENGTH : 1}
-                selectTextOnFocus
-                autoFocus={index === 0}
-              />
-            ))}
+            <Text style={styles.title}>Check your inbox</Text>
+            <Text style={styles.subtitle}>We've sent a 6-digit verification code to</Text>
+            <Text style={styles.email}>{email}</Text>
+
+            {/* OTP boxes */}
+            <View style={styles.otpContainer}>
+              {otp.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => {
+                    inputRefs.current[index] = ref;
+                  }}
+                  style={[
+                    styles.otpInput,
+                    digit !== '' && styles.otpInputFilled,
+                    errorBorder(!!errors.code),
+                  ]}
+                  value={digit}
+                  onChangeText={(text) => handleOtpChange(text, index)}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  keyboardType="number-pad"
+                  accessibilityLabel={`Verification digit ${index + 1}`}
+                  maxFontSizeMultiplier={1.4}
+                  maxLength={index === 0 ? CODE_LENGTH : 1}
+                  selectTextOnFocus
+                  autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                  textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+                />
+              ))}
+            </View>
+            <FieldError message={errors.code} />
+
+            <TouchableOpacity
+              style={[styles.primaryBtn, (!codeComplete || loading) && styles.primaryBtnDisabled]}
+              onPress={handleVerify}
+              disabled={!codeComplete || loading}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !codeComplete || loading, busy: loading }}
+              activeOpacity={0.85}
+            >
+              {loading && <LoadingDots color="#FFFFFF" />}
+              <Text style={styles.primaryBtnText}>{loading ? 'Verifying…' : 'Verify email'}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.resendRow}>
+              <Text style={styles.resendText}>Didn't receive the code?</Text>
+              {countdown > 0 ? (
+                <Text style={styles.countdownText}>Resend in {countdown}s</Text>
+              ) : (
+                <TouchableOpacity onPress={handleResend} disabled={resendLoading}>
+                  <Text style={styles.resendLink}>
+                    {resendLoading ? 'Sending…' : 'Resend code'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-          <FieldError message={errors.code} />
-
-          <TouchableOpacity
-            style={[styles.primaryBtn, (!codeComplete || loading) && styles.primaryBtnDisabled]}
-            onPress={handleVerify}
-            disabled={!codeComplete || loading}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.primaryBtnText}>{loading ? 'Verifying…' : 'Verify email'}</Text>
-            {!loading && (
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.resendRow}>
-            <Text style={styles.resendText}>Didn't receive the code?</Text>
-            {countdown > 0 ? (
-              <Text style={styles.countdownText}>Resend in {countdown}s</Text>
-            ) : (
-              <TouchableOpacity onPress={handleResend} disabled={resendLoading}>
-                <Text style={styles.resendLink}>
-                  {resendLoading ? 'Sending…' : 'Resend code'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -205,41 +218,40 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    paddingHorizontal: 28,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: lightColors.inputBg,
+  scroll: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+  },
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
   },
+  illustration: { width: '100%', maxWidth: 300, height: 265, marginBottom: 12 },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingBottom: 48,
-  },
-  iconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: lightColors.chipBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
+    paddingTop: 12,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '800',
+    alignSelf: 'stretch',
+    fontSize: 32,
+    lineHeight: 40,
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     letterSpacing: -0.4,
     marginBottom: 10,
     textAlign: 'center',
   },
   subtitle: {
+    fontFamily: fonts.regular,
     fontSize: 15,
     color: lightColors.textMuted,
     textAlign: 'center',
@@ -248,76 +260,80 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 15,
     color: lightColors.primary,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     textAlign: 'center',
     marginBottom: 32,
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     alignSelf: 'stretch',
   },
   otpInput: {
-    width: 48,
+    flex: 1,
+    maxWidth: 52,
     height: 56,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    borderRadius: 14,
-    backgroundColor: lightColors.inputBg,
+    borderWidth: 1,
+    borderColor: lightColors.divider,
+    borderRadius: 10,
+    backgroundColor: 'transparent',
     color: lightColors.textDark,
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     textAlign: 'center',
   },
   otpInputFilled: {
     borderColor: lightColors.primary,
   },
   primaryBtn: {
+    gap: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: lightColors.primary,
-    borderRadius: 12,
+    borderRadius: 18,
     paddingVertical: 16,
     alignSelf: 'stretch',
-    marginTop: 32,
+    marginTop: 40,
     shadowColor: lightColors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 0,
   },
   primaryBtnDisabled: {
-    backgroundColor: '#C8DDD2',
+    backgroundColor: '#83968A',
     shadowOpacity: 0,
     elevation: 0,
   },
   primaryBtnText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   resendRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: 6,
     marginTop: 24,
   },
   resendText: {
     color: lightColors.textMuted,
+    fontFamily: fonts.regular,
     fontSize: 15,
   },
   resendLink: {
     color: lightColors.primary,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   countdownText: {
     color: lightColors.textMuted,
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
 });
 

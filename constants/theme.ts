@@ -1,20 +1,20 @@
-// constants/theme.ts — URide brand palette
+// HalalBasket: warm cream, forest green, and quiet neutral surfaces.
 
 // ── Light theme palette (new design system) ──────────────────────────────────
 export const lightColors = {
-  background:  '#FFFFFF',
+  background:  '#FBF8F1',
   surface:     '#FFFFFF',
-  inputBg:     '#F2F9F5',               // Very light mint for input fields & steppers
-  primary:     '#1A5C38',               // Brand green (deep forest)
+  inputBg:     '#F0F1E9',
+  primary:     '#205A3C',
   primaryDark: '#134D2F',               // Pressed / darker green
   blob:        'rgba(39,174,96,0.13)',   // Large decorative circles
   blobMid:     'rgba(39,174,96,0.09)',   // Medium / smaller blobs
   stripe:      'rgba(39,174,96,0.11)',   // Diagonal stripe lines
-  textDark:    '#1A2E1F',               // Near-black, green-tinted
-  textMuted:   '#6B8070',               // Secondary / placeholder text
+  textDark:    '#19382A',
+  textMuted:   '#667166',
   cardShadow:  '#000000',
-  divider:     'rgba(0,0,0,0.06)',
-  chipBg:      '#EAF5EE',               // Light mint chip / badge backgrounds
+  divider:     '#E4E6DA',
+  chipBg:      '#E9EEE2',
   error:       '#E74C3C',
 };
 

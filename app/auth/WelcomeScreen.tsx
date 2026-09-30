@@ -1,244 +1,180 @@
-// app/auth/WelcomeScreen.tsx — brand landing. First thing a signed-out user
-// sees: wordmark, tagline, the three marketplace categories, then Get started /
-// Sign in.
-
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  AccessibilityInfo, NativeScrollEvent, NativeSyntheticEvent, Pressable,
+  ScrollView, StyleSheet, Text, useWindowDimensions, View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { lightColors } from '../../constants/theme';
-import BackgroundPattern from '../components/BackgroundPattern';
+import { fonts } from '../../constants/typography';
+import OnboardingPhoto from '../components/ui/OnboardingPhoto';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
-const CATEGORIES: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  blurb: string;
-}[] = [
+const slides = [
   {
-    icon: 'restaurant-outline',
-    title: 'Restaurants',
-    blurb: 'Hot halal meals from local kitchens, delivered fast.',
+    category: 'RESTAURANTS', icon: 'restaurant-outline' as const,
+    title: 'Everything halal,', accent: 'delivered.',
+    description: 'Meals from local restaurants, delivered to your door.',
+    image: require('../../assets/onboarding/restaurant.png'),
+    imageLabel: 'Chicken and saffron rice, hummus and fresh flatbread',
   },
   {
-    icon: 'storefront-outline',
-    title: 'Butchers & farms',
-    blurb: 'Fresh zabiha meat and farm goods you can trust.',
+    category: 'BUTCHERS & FARMS', icon: 'storefront-outline' as const,
+    title: 'Fresh finds.', accent: 'Full baskets.',
+    description: 'Fresh halal cuts and farm goods for your everyday table.',
+    image: require('../../assets/onboarding/butchers-and-farms.png'),
+    imageLabel: 'Fresh beef and lamb cuts with vegetables and herbs',
   },
   {
-    icon: 'home-outline',
-    title: 'Home cooks',
-    blurb: 'Pre-order authentic home-made dishes from your community.',
+    category: 'HOME COOKS', icon: 'home-outline' as const,
+    title: 'Made with care.', accent: 'Shared with you.',
+    description: 'Pre-order homemade dishes from cooks in your community.',
+    image: require('../../assets/onboarding/home-cooking.png'),
+    imageLabel: 'A home cook adding fresh herbs to a shared meal',
   },
 ];
 
-const WelcomeScreen = ({ navigation }: Props) => {
+export default function WelcomeScreen({ navigation }: Props) {
+  const { width: windowWidth, height, fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const width = Math.min(windowWidth, 520);
+  const reducedMotion = useReducedMotion();
+  const pager = useRef<ScrollView>(null);
+  const [page, setPage] = useState(0);
+  const pageRef = useRef(0);
+  const availableHeight = height - insets.top - insets.bottom;
+  const compact = availableHeight < 720;
+  const photoHeight = compact
+    ? Math.max(130, availableHeight * (fontScale > 1.15 ? 0.25 : 0.3))
+    : Math.min(360, availableHeight * 0.41);
+  const headlineSize = width < 370 ? 33 : width < 420 ? 38 : 42;
+
+  // Preserve the selected slide when the window size changes.
+  useEffect(() => {
+    pager.current?.scrollTo({ x: pageRef.current * width, animated: false });
+  }, [width]);
+
+  const selectPage = (index: number) => {
+    pageRef.current = index;
+    setPage(index);
+    pager.current?.scrollTo({ x: index * width, animated: !reducedMotion });
+    AccessibilityInfo.announceForAccessibility(`${slides[index].category}. Page ${index + 1} of ${slides.length}.`);
+  };
+  const finishSwipe = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.max(0, Math.min(slides.length - 1, Math.round(event.nativeEvent.contentOffset.x / width)));
+    if (index !== pageRef.current) {
+      pageRef.current = index;
+      setPage(index);
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <BackgroundPattern />
-
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        {/* Wordmark */}
-        <View style={styles.brandRow}>
-          <View style={styles.brandIcon}>
-            <Ionicons name="basket" size={26} color="#FFFFFF" />
-          </View>
-          <Text style={styles.brandText}>
-            Halal<Text style={styles.brandTextAccent}>Basket</Text>
-          </Text>
+    <SafeAreaView style={styles.screen}>
+      <View style={[styles.layout, { width }]}>
+        <View style={[styles.brand, compact && styles.compactBrand]} accessible accessibilityLabel="HalalBasket">
+          <Ionicons name="basket-outline" size={30} color={lightColors.primary} />
+          <Text style={styles.wordmark}>Halal<Text style={styles.wordmarkAccent}>Basket</Text></Text>
         </View>
 
-        {/* Tagline */}
-        <Text style={styles.headline}>Everything halal,{'\n'}delivered.</Text>
-        <Text style={styles.subline}>
-          One basket for every halal craving — restaurants, butchers, farms and
-          home cooks near you.
-        </Text>
-
-        {/* Category value props */}
-        <View style={styles.cards}>
-          {CATEGORIES.map((c) => (
-            <View key={c.title} style={styles.card}>
-              <View style={styles.cardIconCircle}>
-                <Ionicons name={c.icon} size={24} color={lightColors.primary} />
+        <ScrollView ref={pager} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+          style={styles.pager} onMomentumScrollEnd={finishSwipe} bounces={false}
+          scrollEventThrottle={16} directionalLockEnabled
+        >
+          {slides.map((slide, index) => (
+            <ScrollView key={slide.category} style={{ width }} contentContainerStyle={styles.slide}
+              showsVerticalScrollIndicator={compact || fontScale > 1.15} bounces={false} nestedScrollEnabled
+              accessibilityElementsHidden={page !== index}
+              importantForAccessibility={page === index ? 'auto' : 'no-hide-descendants'}
+            >
+              <View style={styles.photoWrap}>
+                <OnboardingPhoto source={slide.image} height={photoHeight} label={slide.imageLabel} />
+                <View style={styles.photoBadge} accessible={false}>
+                  <Ionicons name={slide.icon} size={15} color={lightColors.primary} />
+                  <Text style={styles.badgeText}>{slide.category}</Text>
+                </View>
               </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{c.title}</Text>
-                <Text style={styles.cardBlurb}>{c.blurb}</Text>
+              <View style={[styles.copy, compact && styles.compactCopy]}>
+                <Text accessibilityRole="header" style={[styles.headline, { fontSize: headlineSize, lineHeight: headlineSize * 1.17 }]}>
+                  {slide.title}{'\n'}<Text style={styles.headlineAccent}>{slide.accent}</Text>
+                </Text>
+                <Text style={[styles.description, compact && styles.compactDescription]}>{slide.description}</Text>
               </View>
-            </View>
+            </ScrollView>
           ))}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <View style={[styles.pagination, compact && styles.compactPagination]}>
+            <View style={styles.dots}>
+              {slides.map((slide, index) => (
+                <Pressable key={slide.category} onPress={() => selectPage(index)} accessibilityRole="button"
+                  accessibilityLabel={`Page ${index + 1} of 3: ${slide.category.toLowerCase()}`}
+                  accessibilityState={{ selected: index === page }} style={styles.dotTarget}
+                ><View style={[styles.dot, index === page && styles.activeDot]} /></Pressable>
+              ))}
+            </View>
+            <Pressable onPress={() => selectPage((page + 1) % slides.length)} accessibilityRole="button"
+              accessibilityLabel={page === slides.length - 1 ? 'Back to first introduction' : 'Next introduction'}
+              style={({ pressed }) => [styles.next, pressed && styles.pressed]}
+            >
+              {fontScale < 1.5 && <Text style={styles.swipeHint}>{page === slides.length - 1 ? 'Explore again' : 'Swipe to explore'}</Text>}
+              <View style={styles.nextIcon}><Ionicons name={page === slides.length - 1 ? 'refresh-outline' : 'arrow-forward'} size={19} color={lightColors.primary} /></View>
+            </Pressable>
+          </View>
+          <Pressable onPress={() => navigation.navigate('SignUp')} accessibilityRole="button" accessibilityLabel="Get started"
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryPressed]}
+          >
+            <Text style={styles.primaryLabel}>Get started</Text>
+            <Ionicons name="arrow-forward" size={21} color="#fff" />
+          </Pressable>
+          <Pressable onPress={() => navigation.navigate('SignIn')} accessibilityRole="button" accessibilityLabel="Already have an account? Sign in"
+            style={({ pressed }) => [styles.signIn, pressed && styles.pressed]}
+          >
+            <Text style={styles.signInText}>Already have an account? <Text style={styles.signInLink}>Sign in</Text></Text>
+          </Pressable>
         </View>
-      </ScrollView>
-
-      {/* Bottom actions */}
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          onPress={() => navigation.navigate('SignUp')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.primaryBtnText}>Get started</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryBtn}
-          onPress={() => navigation.navigate('SignIn')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.secondaryBtnText}>
-            Already have an account? <Text style={styles.secondaryBtnBold}>Sign in</Text>
-          </Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: lightColors.background,
-    overflow: 'hidden',
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 28,
-    paddingTop: 32,
-  },
-
-  /* Brand */
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 36,
-  },
-  brandIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: lightColors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: lightColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  brandText: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: lightColors.textDark,
-    letterSpacing: -0.5,
-  },
-  brandTextAccent: {
-    color: lightColors.primary,
-  },
-
-  /* Headline */
-  headline: {
-    fontSize: 36,
-    lineHeight: 42,
-    fontWeight: '800',
-    color: lightColors.textDark,
-    letterSpacing: -0.6,
-    marginBottom: 12,
-  },
-  subline: {
-    fontSize: 16,
-    lineHeight: 23,
-    color: lightColors.textMuted,
-    marginBottom: 32,
-    maxWidth: 320,
-  },
-
-  /* Category cards */
-  cards: {
-    gap: 14,
-    marginBottom: 24,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: lightColors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: lightColors.divider,
-    padding: 16,
-    gap: 14,
-    shadowColor: lightColors.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: lightColors.chipBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardBody: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: lightColors.textDark,
-    marginBottom: 3,
-  },
-  cardBlurb: {
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: lightColors.textMuted,
-  },
-
-  /* Actions */
-  actions: {
-    paddingHorizontal: 28,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  primaryBtn: {
-    backgroundColor: lightColors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: lightColors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-    marginBottom: 12,
-  },
-  primaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  secondaryBtn: {
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  secondaryBtnText: {
-    color: lightColors.textMuted,
-    fontSize: 15,
-  },
-  secondaryBtnBold: {
-    color: lightColors.primary,
-    fontWeight: '700',
-  },
+  screen: { flex: 1, backgroundColor: lightColors.background, alignItems: 'center' },
+  layout: { flex: 1 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 26, paddingTop: 12, paddingBottom: 22 },
+  compactBrand: { paddingTop: 4, paddingBottom: 12 },
+  wordmark: { fontFamily: fonts.extraBold, fontSize: 25, letterSpacing: -1, color: lightColors.textDark },
+  wordmarkAccent: { fontFamily: fonts.medium, color: lightColors.primary },
+  pager: { flex: 1 },
+  slide: { paddingBottom: 10 },
+  photoWrap: { marginHorizontal: 18 },
+  photoBadge: { position: 'absolute', bottom: 16, left: 16, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: lightColors.background, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, maxWidth: '90%' },
+  badgeText: { flexShrink: 1, fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.15, color: lightColors.primary },
+  copy: { paddingHorizontal: 26, paddingTop: 23 },
+  compactCopy: { paddingTop: 15 },
+  headline: { fontFamily: fonts.extraBold, color: lightColors.textDark, letterSpacing: -1.8 },
+  headlineAccent: { color: lightColors.primary },
+  description: { fontFamily: fonts.regular, fontSize: 15.5, lineHeight: 25, color: lightColors.textMuted, marginTop: 15 },
+  compactDescription: { marginTop: 10, lineHeight: 23 },
+  footer: { paddingHorizontal: 26, paddingBottom: 4, paddingTop: 4 },
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  compactPagination: { marginBottom: 8 },
+  dots: { flexDirection: 'row' },
+  dotTarget: { width: 44, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 4, backgroundColor: '#b9c4b8' },
+  activeDot: { width: 26, backgroundColor: lightColors.primary },
+  next: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  nextIcon: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: lightColors.divider, alignItems: 'center', justifyContent: 'center' },
+  swipeHint: { fontFamily: fonts.medium, fontSize: 11, color: lightColors.textMuted },
+  primaryButton: { minHeight: 60, borderRadius: 18, paddingHorizontal: 24, paddingVertical: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, backgroundColor: lightColors.primary },
+  primaryLabel: { fontFamily: fonts.bold, fontSize: 17, color: '#fff' },
+  primaryPressed: { backgroundColor: lightColors.primaryDark, transform: [{ scale: 0.985 }] },
+  pressed: { opacity: 0.65 },
+  signIn: { minHeight: 54, paddingVertical: 16, justifyContent: 'center', alignItems: 'center' },
+  signInText: { fontFamily: fonts.regular, fontSize: 13, color: lightColors.textMuted, textAlign: 'center' },
+  signInLink: { fontFamily: fonts.bold, color: lightColors.primary },
 });
-
-export default WelcomeScreen;

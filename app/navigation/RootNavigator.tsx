@@ -1,11 +1,15 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/clerk-expo';
 import { lightColors } from '../../constants/theme';
+import { fonts } from '../../constants/typography';
 import { useSession } from '../context/SessionContext';
+import BrandLoadingScreen from '../components/ui/BrandLoadingScreen';
+import ProfileConnectionError from '../components/ui/ProfileConnectionError';
+import { notify } from '../lib/notify';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import type {
   AdminTabParamList,
   AuthStackParamList,
@@ -85,7 +89,8 @@ const tabScreenOptions = {
   headerShown: false,
   tabBarActiveTintColor: lightColors.primary,
   tabBarInactiveTintColor: lightColors.textMuted,
-  tabBarStyle: { backgroundColor: lightColors.surface },
+  tabBarStyle: { backgroundColor: lightColors.background, borderTopColor: lightColors.divider, elevation: 0 },
+  tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11 },
 } as const;
 
 function tabIcon(name: keyof typeof Ionicons.glyphMap) {
@@ -139,8 +144,9 @@ function AdminTabs() {
 }
 
 function AuthNavigator() {
+  const reducedMotion = useReducedMotion();
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Welcome">
+    <AuthStack.Navigator screenOptions={{ headerShown: false, animation: reducedMotion ? 'none' : 'slide_from_right', contentStyle: { backgroundColor: lightColors.background } }} initialRouteName="Welcome">
       <AuthStack.Screen name="Welcome" component={WelcomeScreen} />
       <AuthStack.Screen name="SignIn" component={SignInScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
@@ -204,18 +210,20 @@ function CompleteProfileGate() {
 }
 
 export default function RootNavigator() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const { loading, user } = useSession();
+  const { isLoaded, isSignedIn, signOut } = useAuth();
+  const { loading, error, user, refresh } = useSession();
 
   if (!isLoaded || (isSignedIn && loading)) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: lightColors.background }}>
-        <ActivityIndicator size="large" color={lightColors.primary} />
-      </View>
-    );
+    return <BrandLoadingScreen />;
   }
 
-  const needsProfile = isSignedIn && user && !user.first_name;
+  if (isSignedIn && (error || !user)) {
+    return <ProfileConnectionError message={error || 'Your profile is not available yet. Please try again.'}
+      onRetry={() => { void refresh(); }}
+      onSignOut={() => { void signOut().catch(() => notify.error('Could not sign out. Please try again.')); }} />;
+  }
+
+  const needsProfile = isSignedIn && user && (!user.first_name || !user.last_name || !user.phone);
 
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>

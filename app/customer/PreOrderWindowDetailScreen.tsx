@@ -1,3 +1,4 @@
+import { fonts } from '../../constants/typography';
 // HalalBasket — pre-order window (meal drop) detail. Shows cook date, live
 // cutoff countdown, min-order progress, and the drop's listings with
 // add-to-basket. Adding tags the cart with preOrderWindowId.
@@ -18,6 +19,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { lightColors, spacing } from '../../constants/theme';
 import type { MainStackParamList } from '../navigation/types';
 import { supabase } from '../config/supabase';
+import { useDemo } from '../demo/DemoContext';
+import { demoSellers, demoListings } from '../demo/catalog';
+import { marketplaceImage } from '../demo/images';
 import { logger } from '../utils/logger';
 import { notify } from '../lib/notify';
 import { useCart, type CartSellerInfo } from '../context/CartContext';
@@ -53,13 +57,13 @@ const countdownParts = (cutoffIso: string): string => {
   const days = Math.floor(ms / 86_400_000);
   const hours = Math.floor((ms % 86_400_000) / 3_600_000);
   const mins = Math.floor((ms % 3_600_000) / 60_000);
-  const secs = Math.floor((ms % 60_000) / 1000);
   if (days > 0) return `${days}d ${hours}h ${mins}m`;
-  if (hours > 0) return `${hours}h ${mins}m ${secs}s`;
-  return `${mins}m ${secs}s`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return mins > 0 ? `${mins}m` : 'Less than a minute';
 };
 
 export default function PreOrderWindowDetailScreen({ navigation, route }: Props) {
+  const demo = useDemo();
   const { windowId, sellerId } = route.params;
   const insets = useSafeAreaInsets();
   const { addItem, replaceCart, itemCount, subtotal, seller: cartSeller } = useCart();
@@ -75,6 +79,13 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
   const fetchAll = useCallback(async () => {
     try {
       setError(null);
+      if (demo.enabled) {
+        setWindow(demo.windows.find((w) => w.id === windowId && w.seller_id === sellerId) ?? null);
+        setSeller(demoSellers.find((s) => s.id === sellerId) ?? null);
+        setOrderCount(7 + demo.orders.filter((o) => o.pre_order_window_id === windowId).length);
+        setListings(demoListings.filter((l) => l.seller_id === sellerId));
+        return;
+      }
       const [windowRes, sellerRes, countRes, itemsRes] = await Promise.all([
         supabase.from('pre_order_windows').select('*').eq('id', windowId).maybeSingle(),
         supabase.from('public_sellers').select('*').eq('id', sellerId).maybeSingle(),
@@ -97,7 +108,7 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
       setOrderCount(countRes.count ?? 0);
 
       const listingIds = ((itemsRes.data ?? []) as Array<{ listing_id: string }>).map(
-        (r) => r.listing_id
+        (r) => r.listing_id,
       );
       if (listingIds.length > 0) {
         const { data: listingRows, error: lErr } = await supabase
@@ -113,7 +124,7 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
       logger.error('PreOrderWindow', 'fetch failed', { windowId, error: e?.message });
       setError('We could not load this meal drop. Please try again.');
     }
-  }, [windowId, sellerId]);
+  }, [windowId, sellerId, demo.enabled, demo.windows, demo.orders]);
 
   useEffect(() => {
     (async () => {
@@ -123,11 +134,11 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
     })();
   }, [fetchAll]);
 
-  // Live cutoff countdown, ticking every second.
+  // Meal drops are scheduled hours ahead; avoid rerendering the whole menu every second.
   useEffect(() => {
     if (!window) return;
     setCountdown(countdownParts(window.order_cutoff));
-    const timer = setInterval(() => setCountdown(countdownParts(window.order_cutoff)), 1000);
+    const timer = setInterval(() => setCountdown(countdownParts(window.order_cutoff)), 15000);
     return () => clearInterval(timer);
   }, [window]);
 
@@ -135,7 +146,7 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
 
   const handleAdd = (listing: VisibleListingRow) => {
     if (!window || !seller) return;
-    if (cutoffPassed) {
+    if (Date.now() >= Date.parse(window.order_cutoff)) {
       notify.warning('Ordering for this drop has closed.');
       return;
     }
@@ -206,9 +217,9 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
           <Ionicons name="arrow-back" size={22} color={lightColors.textDark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {window.title ?? 'Meal drop'}
+          Meal drop
         </Text>
-        <View style={styles.backBtn} />
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView
@@ -216,6 +227,13 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
         showsVerticalScrollIndicator={false}
       >
         {/* ── Window info card ── */}
+        <Text style={[styles.sectionTitle, { fontSize: 28, lineHeight: 35 }]}>{window.title ?? 'The next meal drop'}</Text>
+        {seller?.banner_url && (
+          <Image
+            source={marketplaceImage(seller.banner_url)}
+            style={{ width: '100%', height: 220, borderRadius: 20, marginBottom: 16 }}
+          />
+        )}
         <View style={styles.infoCard}>
           {seller && (
             <TouchableOpacity
@@ -224,7 +242,7 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
               onPress={() => navigation.navigate('SellerDetail', { sellerId: seller.id })}
             >
               {seller.logo_url ? (
-                <Image source={{ uri: seller.logo_url }} style={styles.sellerLogo} />
+                <Image source={marketplaceImage(seller.logo_url)} style={styles.sellerLogo} />
               ) : (
                 <View style={[styles.sellerLogo, styles.logoPlaceholder]}>
                   <Ionicons name="home" size={16} color={lightColors.primary} />
@@ -249,7 +267,11 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconCircle}>
-              <Ionicons name="hourglass" size={16} color={cutoffPassed ? lightColors.error : lightColors.primary} />
+              <Ionicons
+                name="hourglass"
+                size={16}
+                color={cutoffPassed ? lightColors.error : lightColors.primary}
+              />
             </View>
             <View style={styles.infoTextWrap}>
               <Text style={styles.infoLabel}>Order cutoff</Text>
@@ -293,8 +315,8 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
         <View style={styles.explainCard}>
           <Ionicons name="information-circle" size={20} color={lightColors.primary} />
           <Text style={styles.explainText}>
-            This cook prepares in batches. Order by the cutoff; if fewer than{' '}
-            {window.min_orders} orders come in, the drop is cancelled and you're refunded.
+            This cook prepares in batches. Order by the cutoff; if fewer than {window.min_orders}{' '}
+            orders come in, the drop is cancelled and you're refunded.
           </Text>
         </View>
 
@@ -309,14 +331,14 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
           listings.map((listing) => (
             <View key={listing.id} style={styles.itemRow}>
               {listing.image_url ? (
-                <Image source={{ uri: listing.image_url }} style={styles.itemImage} />
+                <Image source={marketplaceImage(listing.image_url)} style={styles.itemImage} />
               ) : (
                 <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
                   <Ionicons name="fast-food-outline" size={22} color={lightColors.primary} />
                 </View>
               )}
               <View style={styles.itemBody}>
-                <Text style={styles.itemName} numberOfLines={1}>
+                <Text style={styles.itemName} numberOfLines={2}>
                   {listing.name}
                 </Text>
                 {!!listing.description && (
@@ -327,6 +349,8 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
                 <Text style={styles.itemPrice}>{formatMoney(listing.price)}</Text>
               </View>
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`Add ${listing.name}`}
                 style={[styles.addBtn, (cutoffPassed || listing.sold_out) && styles.addBtnDisabled]}
                 onPress={() => handleAdd(listing)}
                 disabled={cutoffPassed || listing.sold_out}
@@ -342,6 +366,7 @@ export default function PreOrderWindowDetailScreen({ navigation, route }: Props)
       {/* ── Sticky basket bar ── */}
       {itemCount > 0 && (
         <TouchableOpacity
+          accessibilityLabel="View basket"
           style={[styles.basketBar, { bottom: insets.bottom + 12 }]}
           activeOpacity={0.9}
           onPress={() => navigation.navigate('Cart')}
@@ -378,8 +403,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20,
     backgroundColor: lightColors.inputBg,
     alignItems: 'center',
@@ -387,14 +412,14 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 26,
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     textAlign: 'center',
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     textAlign: 'center',
   },
@@ -407,7 +432,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
 
   infoCard: {
@@ -439,7 +464,7 @@ const styles = StyleSheet.create({
   sellerName: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   infoRow: {
@@ -461,14 +486,14 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 11.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   infoValue: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   cutoffClosed: {
@@ -477,7 +502,7 @@ const styles = StyleSheet.create({
   infoSub: {
     fontSize: 12,
     color: lightColors.textMuted,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 
   progressBlock: {
@@ -491,7 +516,7 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   confirmedChip: {
@@ -506,7 +531,7 @@ const styles = StyleSheet.create({
   confirmedChipText: {
     color: lightColors.primary,
     fontSize: 11.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   progressTrack: {
     height: 8,
@@ -534,12 +559,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: lightColors.textDark,
     lineHeight: 19,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     marginTop: spacing.lg,
     marginBottom: 12,
@@ -569,8 +594,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   itemImage: {
-    width: 64,
-    height: 64,
+    width: 90,
+    height: 96,
     borderRadius: 12,
     backgroundColor: lightColors.inputBg,
   },
@@ -584,7 +609,7 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   itemDesc: {
@@ -594,14 +619,14 @@ const styles = StyleSheet.create({
   },
   itemPrice: {
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.primary,
     marginTop: 2,
   },
   addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: lightColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -639,17 +664,17 @@ const styles = StyleSheet.create({
   basketCountText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
   },
   basketBarText: {
     flex: 1,
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   basketBarTotal: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
   },
 });

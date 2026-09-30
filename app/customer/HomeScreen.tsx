@@ -1,112 +1,80 @@
-// HalalBasket — customer Home. The flagship discovery screen: category lanes,
-// open-now + top-rated seller rails, upcoming home-cook meal drops.
-
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  ActivityIndicator,
   Image,
   RefreshControl,
-  ActivityIndicator,
-  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { lightColors, spacing } from '../../constants/theme';
+import { lightColors as c } from '../../constants/theme';
+import { fonts } from '../../constants/typography';
 import type { CustomerTabParamList, MainStackParamList } from '../navigation/types';
 import { supabase } from '../config/supabase';
 import { logger } from '../utils/logger';
 import { useSession } from '../context/SessionContext';
 import { useCart } from '../context/CartContext';
+import { useDemo } from '../demo/DemoContext';
+import { demoSellers } from '../demo/catalog';
+import DemoAddress from '../demo/DemoAddress';
+import { marketplaceImage } from '../demo/images';
 import { formatMoney } from '../utils/pricing';
-import BackgroundPattern from '../components/BackgroundPattern';
-import type { Database, PreOrderWindowRow, SellerType } from '../types/database';
+import {
+  CategoryTiles,
+  DiscoveryEmpty,
+  SellerCard,
+  discoveryImages,
+} from '../components/ui/Discovery';
+import type { Database, PreOrderWindowRow } from '../types/database';
 
-type PublicSeller = Database['public']['Views']['public_sellers']['Row'];
-
-interface WindowWithSeller extends PreOrderWindowRow {
-  sellers: { business_name: string } | null;
-}
-
+type Seller = Database['public']['Views']['public_sellers']['Row'];
+type Drop = PreOrderWindowRow & { sellers: { business_name: string } | null };
 type Props = CompositeScreenProps<
   BottomTabScreenProps<CustomerTabParamList, 'Home'>,
   NativeStackScreenProps<MainStackParamList>
 >;
-
-const CATEGORY_LANES: Array<{
-  sellerType: SellerType;
-  title: string;
-  subtitle: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  tint: string;
-}> = [
-  {
-    sellerType: 'restaurant',
-    title: 'Restaurants',
-    subtitle: 'Zabiha-certified kitchens, delivered hot',
-    icon: 'restaurant',
-    tint: '#EAF5EE',
-  },
-  {
-    sellerType: 'butcher',
-    title: 'Butchers & Farms',
-    subtitle: 'Fresh halal meat, cut to order',
-    icon: 'storefront',
-    tint: '#FDF3E7',
-  },
-  {
-    sellerType: 'home_cook',
-    title: 'Home Cooks',
-    subtitle: 'Homemade meal drops from your neighbours',
-    icon: 'home',
-    tint: '#EFF3FB',
-  },
-];
-
-const getGreeting = () => {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-};
-
-const formatCookDate = (cookDate: string): string => {
-  const [y, m, d] = cookDate.split('-').map(Number);
-  const date = new Date(y, (m ?? 1) - 1, d ?? 1);
-  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-};
-
-const cutoffLabel = (cutoffIso: string): string => {
-  const ms = new Date(cutoffIso).getTime() - Date.now();
-  if (ms <= 0) return 'Ordering closed';
-  const hours = Math.floor(ms / 3_600_000);
-  if (hours >= 48) return `Order within ${Math.floor(hours / 24)} days`;
-  if (hours >= 1) return `Order within ${hours}h`;
-  return `Closes in ${Math.max(1, Math.floor(ms / 60_000))} min`;
-};
+const cookDate = (value: string) =>
+  new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 
 export default function HomeScreen({ navigation }: Props) {
+  const demo = useDemo();
+  const [addressOpen, setAddressOpen] = useState(false);
   const { user } = useSession();
   const { itemCount, subtotal } = useCart();
-  const insets = useSafeAreaInsets();
-
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [openNow, setOpenNow] = useState<PublicSeller[]>([]);
-  const [topRated, setTopRated] = useState<PublicSeller[]>([]);
-  const [drops, setDrops] = useState<WindowWithSeller[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [openNow, setOpenNow] = useState<Seller[]>([]);
+  const [topRated, setTopRated] = useState<Seller[]>([]);
+  const [drops, setDrops] = useState<Drop[]>([]);
 
   const fetchAll = useCallback(async () => {
     try {
-      setLoadError(null);
-      const [openRes, topRes, dropsRes] = await Promise.all([
+      setError(null);
+      if (demo.enabled) {
+        setOpenNow(demoSellers.filter((s) => s.is_open));
+        setTopRated(demoSellers.slice(0, 5));
+        setDrops(
+          demo.windows.map((w) => ({
+            ...w,
+            sellers: demoSellers.find((s) => s.id === w.seller_id)!,
+          })),
+        );
+        return;
+      }
+      const [open, top, upcoming] = await Promise.all([
         supabase
           .from('public_sellers')
           .select('*')
@@ -128,593 +96,350 @@ export default function HomeScreen({ navigation }: Props) {
           .order('order_cutoff', { ascending: true })
           .limit(10),
       ]);
-      if (openRes.error) throw openRes.error;
-      if (topRes.error) throw topRes.error;
-      if (dropsRes.error) throw dropsRes.error;
-      setOpenNow((openRes.data ?? []) as PublicSeller[]);
-      setTopRated((topRes.data ?? []) as PublicSeller[]);
-      setDrops((dropsRes.data ?? []) as unknown as WindowWithSeller[]);
+      if (open.error) throw open.error;
+      if (top.error) throw top.error;
+      if (upcoming.error) throw upcoming.error;
+      setOpenNow((open.data ?? []) as Seller[]);
+      setTopRated((top.data ?? []) as Seller[]);
+      setDrops((upcoming.data ?? []) as unknown as Drop[]);
     } catch (e: any) {
       logger.error('Home', 'fetch failed', { error: e?.message });
-      setLoadError('We could not load the marketplace. Pull to retry.');
+      setError('We could not load the marketplace. Please try again.');
     }
-  }, []);
-
+  }, [demo.enabled, demo.windows]);
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      await fetchAll();
-      setLoading(false);
-    })();
+    void fetchAll().finally(() => setLoading(false));
   }, [fetchAll]);
-
-  const onRefresh = useCallback(async () => {
+  const refresh = async () => {
     setRefreshing(true);
     await fetchAll();
     setRefreshing(false);
-  }, [fetchAll]);
-
-  const renderSellerCard = ({ item }: { item: PublicSeller }) => (
-    <TouchableOpacity
-      style={styles.sellerCard}
-      activeOpacity={0.85}
-      onPress={() => navigation.navigate('SellerDetail', { sellerId: item.id })}
-    >
-      {item.banner_url ? (
-        <Image source={{ uri: item.banner_url }} style={styles.sellerBanner} />
-      ) : (
-        <View style={[styles.sellerBanner, styles.bannerPlaceholder]}>
-          <Ionicons name="image-outline" size={28} color={lightColors.textMuted} />
-        </View>
-      )}
-      <View style={styles.sellerCardBody}>
-        <View style={styles.sellerNameRow}>
-          {item.logo_url ? (
-            <Image source={{ uri: item.logo_url }} style={styles.sellerLogo} />
-          ) : (
-            <View style={[styles.sellerLogo, styles.logoPlaceholder]}>
-              <Ionicons name="leaf" size={14} color={lightColors.primary} />
-            </View>
-          )}
-          <Text style={styles.sellerName} numberOfLines={1}>
-            {item.business_name}
-          </Text>
-        </View>
-        <View style={styles.sellerMetaRow}>
-          <Ionicons name="star" size={13} color="#F5A623" />
-          <Text style={styles.sellerRating}>
-            {item.avg_rating != null ? Number(item.avg_rating).toFixed(1) : 'New'}
-          </Text>
-          <View style={[styles.openChip, !item.is_open && styles.closedChip]}>
-            <Text style={[styles.openChipText, !item.is_open && styles.closedChipText]}>
-              {item.seller_type === 'home_cook' ? 'Pre-order' : item.is_open ? 'Open now' : 'Closed'}
-            </Text>
-          </View>
-        </View>
-        {(item.cuisine_tags ?? []).length > 0 && (
-          <Text style={styles.sellerTags} numberOfLines={1}>
-            {(item.cuisine_tags ?? []).slice(0, 3).join(' · ')}
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderRail = (
-    title: string,
-    icon: keyof typeof Ionicons.glyphMap,
-    data: PublicSeller[],
-    emptyCopy: string
-  ) => (
-    <View style={styles.railSection}>
-      <View style={styles.railHeader}>
-        <Ionicons name={icon} size={18} color={lightColors.primary} />
-        <Text style={styles.railTitle}>{title}</Text>
-      </View>
-      {data.length === 0 ? (
-        <Text style={styles.railEmpty}>{emptyCopy}</Text>
-      ) : (
-        <FlatList
-          horizontal
-          data={data}
-          keyExtractor={(s) => s.id}
-          renderItem={renderSellerCard}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.railContent}
-        />
-      )}
-    </View>
-  );
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={lightColors.primary} />
-          <Text style={styles.loadingText}>Setting the table…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  };
+  const firstName = user?.first_name?.trim();
+  const name = firstName ? `${firstName[0].toUpperCase()}${firstName.slice(1)}` : '';
+  const featured = topRated.length ? topRated : openNow;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <BackgroundPattern />
+    <SafeAreaView style={s.screen} edges={['top']}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[s.content, { paddingBottom: itemCount ? 100 : 28 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={lightColors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.primary} />
         }
       >
-        {/* ── Greeting header ── */}
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.greeting}>
-              {getGreeting()}
-              {user?.first_name ? `, ${user.first_name}` : ''}
-            </Text>
-            <Text style={styles.tagline}>Everything halal, in one place</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.addressChip}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Ionicons name="location" size={14} color={lightColors.primary} />
-            <Text style={styles.addressText} numberOfLines={1}>
-              {user?.default_address ?? 'Set delivery address'}
-            </Text>
-            <Ionicons name="chevron-down" size={13} color={lightColors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Search bar ── */}
         <TouchableOpacity
-          style={styles.searchBar}
-          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Change delivery address"
+          onPress={() => (demo.enabled ? setAddressOpen(true) : navigation.navigate('EditProfile'))}
+          style={s.address}
+        >
+          <Ionicons name="location-outline" size={25} color={c.textDark} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.overline}>Deliver to</Text>
+            <View style={s.addressLine}>
+              <Text style={s.addressText} numberOfLines={1}>
+                {demo.enabled ? demo.address : user?.default_address || 'Set delivery address'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={c.textDark} />
+            </View>
+          </View>
+        </TouchableOpacity>
+        <Text style={s.heading}>
+          What sounds{'\n'}good{name ? `, ${name}` : ''}?
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Search food and sellers"
+          style={s.search}
           onPress={() => navigation.navigate('Search', { initialQuery: undefined })}
         >
-          <View style={styles.searchIconCircle}>
-            <Ionicons name="search" size={17} color="#fff" />
-          </View>
-          <Text style={styles.searchPlaceholder}>Search halal food, butchers, cooks…</Text>
+          <Ionicons name="search-outline" size={21} color={c.textDark} />
+          <Text style={s.searchText}>Search restaurants, dishes…</Text>
         </TouchableOpacity>
-
-        {loadError && (
-          <View style={styles.errorBanner}>
-            <Ionicons name="cloud-offline-outline" size={18} color={lightColors.error} />
-            <Text style={styles.errorText}>{loadError}</Text>
+        <CategoryTiles
+          onPress={(sellerType) => navigation.navigate('CategoryBrowse', { sellerType })}
+        />
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Explore local halal food"
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Search', { initialQuery: undefined })}
+          style={s.hero}
+        >
+          <Image
+            source={discoveryImages.restaurant}
+            style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(12,29,19,0.2)', 'rgba(12,29,19,0.88)']}
+            locations={[0, 0.3, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={s.heroBody}>
+            <Text style={s.heroTitle}>Your next{'\n'}favourite is nearby</Text>
+            <Text style={s.heroSubtitle}>Great food from your neighbourhood.</Text>
+            <View style={s.heroAction}>
+              <Text style={s.heroActionText}>Explore now</Text>
+              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+            </View>
           </View>
-        )}
-
-        {/* ── Category lanes ── */}
-        <View style={styles.lanes}>
-          {CATEGORY_LANES.map((lane) => (
-            <TouchableOpacity
-              key={lane.sellerType}
-              style={[styles.laneCard, { backgroundColor: lane.tint }]}
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('CategoryBrowse', { sellerType: lane.sellerType })}
-            >
-              <View style={styles.laneIconCircle}>
-                <Ionicons name={lane.icon} size={24} color={lightColors.primary} />
-              </View>
-              <View style={styles.laneText}>
-                <Text style={styles.laneTitle}>{lane.title}</Text>
-                <Text style={styles.laneSubtitle}>{lane.subtitle}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={lightColors.primary} />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Open now rail ── */}
-        {renderRail('Open now', 'flash', openNow, 'No sellers are open right now — check back soon.')}
-
-        {/* ── Top rated rail ── */}
-        {renderRail('Top rated', 'star', topRated, 'Ratings appear once orders start rolling in.')}
-
-        {/* ── Upcoming meal drops ── */}
-        <View style={styles.railSection}>
-          <View style={styles.railHeader}>
-            <Ionicons name="calendar" size={18} color={lightColors.primary} />
-            <Text style={styles.railTitle}>Upcoming meal drops</Text>
+        </TouchableOpacity>
+        {loading ? (
+          <View style={s.loading}>
+            <ActivityIndicator color={c.primary} />
+            <Text style={s.body}>Finding your local favourites…</Text>
           </View>
-          {drops.length === 0 ? (
-            <Text style={styles.railEmpty}>No open pre-order windows yet — home cooks post drops here.</Text>
-          ) : (
-            <FlatList
-              horizontal
-              data={drops}
-              keyExtractor={(w) => w.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.railContent}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.dropCard}
-                  activeOpacity={0.85}
-                  onPress={() =>
-                    navigation.navigate('PreOrderWindowDetail', {
-                      windowId: item.id,
-                      sellerId: item.seller_id,
-                    })
-                  }
+        ) : error ? (
+          <DiscoveryEmpty
+            error
+            title="Let's try that again"
+            message={error}
+            onPress={refresh}
+            action="Try again"
+          />
+        ) : (
+          <>
+            {featured.length > 0 ? (
+              <View>
+                <View style={s.sectionHeader}>
+                  <Text style={s.sectionTitle}>
+                    {topRated.length ? 'Popular on HalalBasket' : 'Open now'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('Search', { initialQuery: undefined })}
+                    style={s.seeAll}
+                  >
+                    <Text style={s.link}>See all</Text>
+                  </TouchableOpacity>
+                </View>
+                {featured.slice(0, 3).map((seller) => (
+                  <SellerCard
+                    key={seller.id}
+                    seller={seller}
+                    compact
+                    onPress={() => navigation.navigate('SellerDetail', { sellerId: seller.id })}
+                  />
+                ))}
+              </View>
+            ) : (
+              <DiscoveryEmpty
+                title="Good things are on the way"
+                message="Your local marketplace is growing. Explore restaurants, fresh cuts and home-cooked meal drops while sellers get ready."
+                onPress={() => navigation.navigate('CategoryBrowse', { sellerType: 'restaurant' })}
+              />
+            )}
+            {!!topRated.length && !!openNow.length && (
+              <View>
+                <Text style={s.sectionTitle}>Open now</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.rail}
                 >
-                  <View style={styles.dropBadge}>
-                    <Ionicons name="flame" size={13} color="#fff" />
-                    <Text style={styles.dropBadgeText}>Meal drop</Text>
-                  </View>
-                  <Text style={styles.dropTitle} numberOfLines={1}>
-                    {item.title ?? 'Home-cooked drop'}
-                  </Text>
-                  <Text style={styles.dropSeller} numberOfLines={1}>
-                    by {item.sellers?.business_name ?? 'Home cook'}
-                  </Text>
-                  <View style={styles.dropMetaRow}>
-                    <Ionicons name="calendar-outline" size={13} color={lightColors.textMuted} />
-                    <Text style={styles.dropMeta}>Cooks {formatCookDate(item.cook_date)}</Text>
-                  </View>
-                  <View style={styles.dropMetaRow}>
-                    <Ionicons name="time-outline" size={13} color={lightColors.textMuted} />
-                    <Text style={styles.dropMeta}>{cutoffLabel(item.order_cutoff)}</Text>
+                  {openNow.map((seller) => (
+                    <View key={seller.id} style={{ width: 280 }}>
+                      <SellerCard
+                        seller={seller}
+                        onPress={() => navigation.navigate('SellerDetail', { sellerId: seller.id })}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+            <View>
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>From home, with love</Text>
+                <Ionicons name="heart-outline" size={21} color={c.primary} />
+              </View>
+              <Text style={s.body}>
+                Reserve a meal from a local cook. Made for you, on their next cooking day.
+              </Text>
+              {drops.length ? (
+                drops.map((drop) => (
+                  <TouchableOpacity
+                    key={drop.id}
+                    accessibilityRole="button"
+                    style={s.drop}
+                    onPress={() =>
+                      navigation.navigate('PreOrderWindowDetail', {
+                        windowId: drop.id,
+                        sellerId: drop.seller_id,
+                      })
+                    }
+                  >
+                    {demo.enabled ? (
+                      <Image
+                        source={marketplaceImage(
+                          demoSellers.find((s) => s.id === drop.seller_id)?.banner_url ??
+                            'demo:baklava',
+                        )}
+                        style={{ width: 76, height: 90, borderRadius: 12 }}
+                      />
+                    ) : (
+                      <View style={s.calendar}>
+                        <Ionicons name="calendar-outline" size={24} color={c.primary} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.dropTitle}>{drop.title || 'Home-cooked meal drop'}</Text>
+                      <Text style={s.body}>{drop.sellers?.business_name || 'Home cook'}</Text>
+                      <Text style={s.dropDate}>Cooks {cookDate(drop.cook_date)}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={c.primary} />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <TouchableOpacity
+                  style={s.cookTeaser}
+                  onPress={() => navigation.navigate('CategoryBrowse', { sellerType: 'home_cook' })}
+                  accessibilityRole="button"
+                >
+                  <Image source={discoveryImages.home_cook} style={s.cookPhoto} />
+                  <View style={s.cookBody}>
+                    <Text style={s.dropTitle}>Meet your neighbourhood cooks</Text>
+                    <Text style={s.body}>Upcoming meal drops will appear here.</Text>
+                    <Text style={s.link}>Explore home cooks →</Text>
                   </View>
                 </TouchableOpacity>
               )}
-            />
-          )}
-        </View>
+            </View>
+          </>
+        )}
       </ScrollView>
-
-      {/* ── Floating cart pill ── */}
+      <DemoAddress visible={addressOpen} onClose={() => setAddressOpen(false)} />
       {itemCount > 0 && (
         <TouchableOpacity
-          style={[styles.cartPill, { bottom: insets.bottom + 16 }]}
-          activeOpacity={0.9}
+          style={s.cart}
+          accessibilityLabel="View basket"
+          accessibilityRole="button"
           onPress={() => navigation.navigate('Cart')}
         >
-          <View style={styles.cartCountBubble}>
-            <Text style={styles.cartCountText}>{itemCount}</Text>
+          <View style={s.cartCount}>
+            <Text style={s.cartText}>{itemCount}</Text>
           </View>
-          <Text style={styles.cartPillText}>View basket</Text>
-          <Text style={styles.cartPillSubtotal}>{formatMoney(subtotal)}</Text>
+          <Text style={[s.cartText, { flex: 1 }]}>View basket</Text>
+          <Text style={s.cartText}>{formatMoney(subtotal)}</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: lightColors.background,
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: c.background },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    gap: 20,
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
   },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+  address: { flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 44 },
+  overline: { color: c.textMuted, fontFamily: fonts.regular, fontSize: 12 },
+  addressLine: { flexDirection: 'row', gap: 7, alignItems: 'center' },
+  addressText: { color: c.textDark, fontFamily: fonts.bold, fontSize: 14, flexShrink: 1 },
+  heading: {
+    fontSize: 34,
+    lineHeight: 41,
+    fontFamily: fonts.extraBold,
+    color: c.textDark,
+    letterSpacing: -1.2,
   },
-  loadingText: {
-    color: lightColors.textMuted,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-  },
-
-  // Header
-  header: {
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    gap: 10,
-  },
-  headerText: {
-    gap: 2,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: lightColors.textDark,
-    letterSpacing: -0.3,
-  },
-  tagline: {
-    fontSize: 14,
-    color: lightColors.textMuted,
-    fontWeight: '500',
-  },
-  addressChip: {
+  search: {
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    backgroundColor: lightColors.chipBg,
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    maxWidth: '90%',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#D8DCD1',
+    borderRadius: 17,
+    paddingHorizontal: 16,
   },
-  addressText: {
-    color: lightColors.primary,
-    fontSize: 13,
-    fontWeight: '600',
+  searchText: { fontSize: 14, fontFamily: fonts.regular, color: c.textMuted, flex: 1 },
+  hero: { height: 270, borderRadius: 22, overflow: 'hidden', justifyContent: 'flex-end' },
+  heroBody: { padding: 20, gap: 8 },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontFamily: fonts.extraBold,
+    fontSize: 28,
+    lineHeight: 33,
+    letterSpacing: -0.8,
+  },
+  heroSubtitle: { fontSize: 13, fontFamily: fonts.medium, color: '#FFFFFF' },
+  heroAction: {
+    backgroundColor: '#C65312',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    borderRadius: 24,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 18,
+    minHeight: 46,
+    marginTop: 4,
+  },
+  heroActionText: { fontFamily: fonts.bold, fontSize: 14, color: '#FFFFFF' },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 6,
+  },
+  sectionTitle: {
+    fontFamily: fonts.extraBold,
+    fontSize: 21,
+    color: c.textDark,
+    letterSpacing: -0.5,
     flexShrink: 1,
   },
-
-  // Search bar
-  searchBar: {
+  seeAll: { minHeight: 44, justifyContent: 'center' },
+  link: { fontFamily: fonts.bold, fontSize: 13, color: c.primary },
+  body: { color: c.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 21 },
+  loading: { flexDirection: 'row', gap: 12, paddingVertical: 20, alignItems: 'center' },
+  rail: { gap: 14, paddingTop: 14 },
+  drop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: lightColors.inputBg,
-    borderRadius: 9999,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: lightColors.divider,
-  },
-  searchIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: lightColors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchPlaceholder: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    color: lightColors.textMuted,
-  },
-
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FDECEA',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: spacing.md,
-  },
-  errorText: {
-    flex: 1,
-    color: lightColors.error,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  // Category lanes
-  lanes: {
-    gap: 10,
-    marginBottom: spacing.lg,
-  },
-  laneCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: lightColors.divider,
-  },
-  laneIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  laneText: {
-    flex: 1,
-    gap: 2,
-  },
-  laneTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: lightColors.textDark,
-  },
-  laneSubtitle: {
-    fontSize: 12.5,
-    color: lightColors.textMuted,
-    fontWeight: '500',
-  },
-
-  // Rails
-  railSection: {
-    marginBottom: spacing.lg,
-  },
-  railHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  railTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: lightColors.textDark,
-  },
-  railEmpty: {
-    color: lightColors.textMuted,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  railContent: {
     gap: 12,
-    paddingRight: spacing.md,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderColor: c.divider,
   },
-
-  // Seller card
-  sellerCard: {
-    width: 220,
-    backgroundColor: lightColors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: lightColors.divider,
-    overflow: 'hidden',
-  },
-  sellerBanner: {
-    width: '100%',
-    height: 110,
-    backgroundColor: lightColors.inputBg,
-  },
-  bannerPlaceholder: {
+  calendar: {
+    backgroundColor: c.chipBg,
+    borderRadius: 14,
+    width: 52,
+    height: 58,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sellerCardBody: {
-    padding: 12,
-    gap: 6,
-  },
-  sellerNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sellerLogo: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: lightColors.chipBg,
-  },
-  logoPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sellerName: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: lightColors.textDark,
-  },
-  sellerMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  sellerRating: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: lightColors.textDark,
-    marginRight: 4,
-  },
-  openChip: {
-    backgroundColor: lightColors.chipBg,
-    borderRadius: 9999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  openChipText: {
-    color: lightColors.primary,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  closedChip: {
-    backgroundColor: '#F4F4F4',
-  },
-  closedChipText: {
-    color: lightColors.textMuted,
-  },
-  sellerTags: {
-    fontSize: 12,
-    color: lightColors.textMuted,
-    fontWeight: '500',
-  },
-
-  // Meal drop card
-  dropCard: {
-    width: 220,
-    backgroundColor: lightColors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: lightColors.divider,
-    padding: 16,
-    gap: 6,
-  },
-  dropBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    backgroundColor: lightColors.primary,
-    borderRadius: 9999,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    marginBottom: 2,
-  },
-  dropBadgeText: {
-    color: '#fff',
-    fontSize: 10.5,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  dropTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: lightColors.textDark,
-  },
-  dropSeller: {
-    fontSize: 12.5,
-    color: lightColors.textMuted,
-    fontWeight: '600',
-  },
-  dropMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dropMeta: {
-    fontSize: 12,
-    color: lightColors.textMuted,
-    fontWeight: '500',
-  },
-
-  // Floating cart pill
-  cartPill: {
+  dropTitle: { fontFamily: fonts.bold, fontSize: 17, color: c.textDark },
+  dropDate: { fontFamily: fonts.semibold, fontSize: 12, color: c.primary, marginTop: 4 },
+  cookTeaser: { flexDirection: 'row', gap: 14, marginTop: 16 },
+  cookPhoto: { width: 104, height: 130, borderRadius: 16 },
+  cookBody: { flex: 1, gap: 7, justifyContent: 'center' },
+  cart: {
     position: 'absolute',
+    bottom: 12,
     left: 20,
     right: 20,
+    borderRadius: 20,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: lightColors.primary,
-    borderRadius: 9999,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    shadowColor: lightColors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    gap: 12,
+    backgroundColor: c.primary,
   },
-  cartCountBubble: {
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
+  cartCount: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  cartCountText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  cartPillText: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  cartPillSubtotal: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '800',
-  },
+  cartText: { fontFamily: fonts.bold, fontSize: 15, color: '#FFFFFF' },
 });

@@ -5,7 +5,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -21,6 +20,9 @@ import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../navigation/types';
 import { lightColors } from '../../constants/theme';
+import { fonts } from '../../constants/typography';
+import { BackButton, BrandWordmark } from '../components/ui/Discovery';
+import ProfileAvatar, { profileInitials } from './ProfileAvatar';
 import { supabase } from '../config/supabase';
 import { useSession } from '../context/SessionContext';
 import { ProfileService } from '../services/profile';
@@ -132,110 +134,129 @@ const EditProfileScreen = ({ navigation }: Props) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={lightColors.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit profile</Text>
-        <View style={{ width: 40 }} />
+        <BackButton onPress={() => navigation.goBack()} />
+        <BrandWordmark />
       </View>
-
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
+        style={styles.flex}
       >
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Avatar */}
-          <View style={styles.avatarWrap}>
-            <TouchableOpacity onPress={handlePickAvatar} activeOpacity={0.8}>
-              {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <Ionicons name="person" size={44} color={lightColors.primary} />
-                </View>
-              )}
-              <View style={styles.cameraBadge}>
-                <Ionicons name="camera" size={16} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-            <Text style={styles.avatarHint}>Tap to change photo</Text>
+          <View style={styles.heading}>
+            <Text style={styles.title}>Personal details</Text>
+            <Text style={styles.subtitle}>A little about you. All in one place.</Text>
           </View>
 
-          {/* Form */}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo"
+            onPress={handlePickAvatar}
+            activeOpacity={0.8}
+            style={styles.photoCard}
+          >
+            <View>
+              <ProfileAvatar
+                uri={avatarUri}
+                initials={profileInitials(firstName, lastName, user?.email)}
+                size={88}
+              />
+              <View style={styles.cameraBadge}>
+                <Ionicons name="camera-outline" size={17} color="#fff" />
+              </View>
+            </View>
+            <View style={styles.photoBody}>
+              <Text style={styles.photoTitle}>Your profile photo</Text>
+              <Text style={styles.hint}>Put a face to your favourites.</Text>
+              <Text style={styles.photoLink}>Change photo</Text>
+            </View>
+          </TouchableOpacity>
+
           <View style={styles.form}>
-            <Text style={styles.label}>First name</Text>
-            <View style={[styles.inputRow, errorBorder(!!errors.firstName)]}>
-              <TextInput
-                style={styles.input}
-                placeholder="First name"
-                placeholderTextColor={lightColors.textMuted}
-                value={firstName}
-                onChangeText={(t) => {
-                  setFirstName(t);
-                  clearError('firstName');
-                }}
-                autoCapitalize="words"
-              />
+            <View style={styles.field}>
+              <Text style={styles.label}>First name</Text>
+              <View style={[styles.inputRow, errorBorder(!!errors.firstName)]}>
+                <TextInput
+                  accessibilityLabel="First name"
+                  style={styles.input}
+                  placeholder="First name"
+                  placeholderTextColor={lightColors.textMuted}
+                  value={firstName}
+                  onChangeText={(t) => {
+                    setFirstName(t);
+                    clearError('firstName');
+                  }}
+                  autoCapitalize="words"
+                />
+              </View>
+              <FieldError message={errors.firstName} />
             </View>
-            <FieldError message={errors.firstName} />
-
-            <Text style={styles.label}>Last name</Text>
-            <View style={[styles.inputRow, errorBorder(!!errors.lastName)]}>
-              <TextInput
-                style={styles.input}
-                placeholder="Last name"
-                placeholderTextColor={lightColors.textMuted}
-                value={lastName}
-                onChangeText={(t) => {
-                  setLastName(t);
-                  clearError('lastName');
-                }}
-                autoCapitalize="words"
-              />
+            <View style={styles.field}>
+              <Text style={styles.label}>Last name</Text>
+              <View style={[styles.inputRow, errorBorder(!!errors.lastName)]}>
+                <TextInput
+                  accessibilityLabel="Last name"
+                  style={styles.input}
+                  placeholder="Last name"
+                  placeholderTextColor={lightColors.textMuted}
+                  value={lastName}
+                  onChangeText={(t) => {
+                    setLastName(t);
+                    clearError('lastName');
+                  }}
+                  autoCapitalize="words"
+                />
+              </View>
+              <FieldError message={errors.lastName} />
             </View>
-            <FieldError message={errors.lastName} />
-
-            <Text style={styles.label}>Phone number</Text>
-            <View style={[styles.inputRow, errorBorder(!!errors.phone)]}>
-              <TextInput
-                style={styles.input}
-                placeholder="(555) 123-4567"
-                placeholderTextColor={lightColors.textMuted}
-                value={phone}
-                onChangeText={(t) => {
-                  setPhone(t);
-                  clearError('phone');
-                }}
-                keyboardType="phone-pad"
-              />
+            <View style={styles.field}>
+              <Text style={styles.label}>Phone number</Text>
+              <View style={[styles.inputRow, errorBorder(!!errors.phone)]}>
+                <Ionicons name="call-outline" size={20} color={lightColors.textMuted} />
+                <TextInput
+                  accessibilityLabel="Phone number"
+                  style={styles.input}
+                  placeholder="(555) 123-4567"
+                  placeholderTextColor={lightColors.textMuted}
+                  value={phone}
+                  onChangeText={(t) => {
+                    setPhone(t);
+                    clearError('phone');
+                  }}
+                  keyboardType="phone-pad"
+                />
+              </View>
+              <FieldError message={errors.phone} />
+              <Text style={styles.hint}>So your driver can reach you.</Text>
             </View>
-            <FieldError message={errors.phone} />
-
-            <Text style={styles.label}>Default delivery address</Text>
-            <View style={[styles.inputRow, styles.inputRowMultiline]}>
-              <TextInput
-                style={[styles.input, styles.inputMultiline]}
-                placeholder="Street, city, postal code"
-                placeholderTextColor={lightColors.textMuted}
-                value={defaultAddress}
-                onChangeText={setDefaultAddress}
-                multiline
-                numberOfLines={2}
-              />
+            <View style={styles.field}>
+              <Text style={styles.label}>Default delivery address</Text>
+              <View style={[styles.inputRow, styles.inputRowMultiline]}>
+                <Ionicons name="location-outline" size={21} color={lightColors.textMuted} />
+                <TextInput
+                  accessibilityLabel="Default delivery address"
+                  style={[styles.input, styles.inputMultiline]}
+                  placeholder="Street, city, postal code"
+                  placeholderTextColor={lightColors.textMuted}
+                  value={defaultAddress}
+                  onChangeText={setDefaultAddress}
+                  multiline
+                  numberOfLines={2}
+                />
+              </View>
+              <Text style={styles.hint}>Ready for checkout. You can change it for each order.</Text>
             </View>
-            <Text style={styles.hint}>Used to pre-fill checkout — you can change it per order.</Text>
           </View>
         </ScrollView>
-
-        {/* Bottom action */}
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Save changes"
+            accessibilityState={{ disabled: saving, busy: saving }}
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
             onPress={handleSave}
             disabled={saving}
@@ -244,7 +265,10 @@ const EditProfileScreen = ({ navigation }: Props) => {
             {saving ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.saveBtnText}>Save changes</Text>
+              <>
+                <Text style={styles.saveBtnText}>Save changes</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
+              </>
             )}
           </TouchableOpacity>
         </View>
@@ -254,145 +278,121 @@ const EditProfileScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: lightColors.background,
-  },
+  container: { flex: 1, backgroundColor: lightColors.background },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 12,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: lightColors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: lightColors.textDark,
+    paddingBottom: 8,
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
   },
   scroll: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+    gap: 24,
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
   },
-
-  /* Avatar */
-  avatarWrap: {
+  heading: { gap: 8 },
+  title: {
+    fontFamily: fonts.extraBold,
+    fontSize: 32,
+    lineHeight: 39,
+    letterSpacing: -1.1,
+    color: lightColors.textDark,
+  },
+  subtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 22,
+    color: lightColors.textMuted,
+  },
+  photoCard: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: lightColors.divider,
+    borderRadius: 22,
+    backgroundColor: lightColors.surface,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 28,
+    gap: 16,
   },
-  avatar: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: lightColors.inputBg,
-  },
-  avatarFallback: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: lightColors.chipBg,
-    alignItems: 'center',
-    justifyContent: 'center',
+  photoBody: { flex: 1, gap: 5 },
+  photoTitle: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: lightColors.textDark },
+  photoLink: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    lineHeight: 20,
+    color: lightColors.primary,
+    marginTop: 4,
   },
   cameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: lightColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2.5,
-    borderColor: lightColors.background,
+    borderWidth: 2,
+    borderColor: lightColors.surface,
   },
-  avatarHint: {
-    marginTop: 10,
-    fontSize: 13,
-    color: lightColors.textMuted,
-    fontWeight: '600',
-  },
-
-  /* Form */
-  form: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: lightColors.textDark,
-    marginTop: 8,
-    marginLeft: 2,
-  },
+  form: { gap: 20 },
+  field: { gap: 8 },
+  label: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 20, color: lightColors.textDark },
   inputRow: {
-    backgroundColor: lightColors.inputBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: lightColors.surface,
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: lightColors.divider,
     paddingHorizontal: 14,
-    minHeight: 54,
-    justifyContent: 'center',
+    minHeight: 56,
   },
-  inputRowMultiline: {
-    paddingVertical: 10,
-  },
+  inputRowMultiline: { minHeight: 88, paddingVertical: 10 },
   input: {
+    flex: 1,
+    minHeight: 54,
+    fontFamily: fonts.medium,
     color: lightColors.textDark,
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 14,
+    paddingVertical: 12,
   },
-  inputMultiline: {
-    minHeight: 44,
-    textAlignVertical: 'top',
-  },
-  hint: {
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: lightColors.textMuted,
-    marginLeft: 2,
-    marginTop: 2,
-  },
-
-  /* Footer */
+  inputMultiline: { textAlignVertical: 'top' },
+  hint: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: lightColors.textMuted },
   footer: {
-    paddingHorizontal: 24,
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
     paddingTop: 12,
     backgroundColor: lightColors.background,
     borderTopWidth: 1,
     borderTopColor: lightColors.divider,
   },
   saveBtn: {
+    minHeight: 56,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
     backgroundColor: lightColors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    shadowColor: lightColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: 16,
   },
-  saveBtnDisabled: {
-    backgroundColor: '#C8DDD2',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-  },
+  saveBtnDisabled: { opacity: 0.5 },
+  saveBtnText: { fontFamily: fonts.bold, color: '#FFFFFF', fontSize: 16 },
 });
 
 export default EditProfileScreen;

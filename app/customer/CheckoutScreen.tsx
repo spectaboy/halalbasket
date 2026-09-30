@@ -1,3 +1,4 @@
+import { fonts } from '../../constants/typography';
 // HalalBasket — checkout. Quotes fees via quoteOrder(), creates the order +
 // items (status pending_payment), then runs the Stripe PaymentSheet flow:
 // create-order-payment -> initPaymentSheet -> presentPaymentSheet ->
@@ -14,6 +15,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +24,10 @@ import { useStripe } from '@stripe/stripe-react-native';
 import { lightColors, spacing } from '../../constants/theme';
 import type { MainStackParamList } from '../navigation/types';
 import { supabase } from '../config/supabase';
+import { useDemo } from '../demo/DemoContext';
+import { isDemoId } from '../demo/catalog';
+import { demoQuote } from '../demo/model';
+import { marketplaceImage } from '../demo/images';
 import { logger } from '../utils/logger';
 import { notify } from '../lib/notify';
 import { useCart } from '../context/CartContext';
@@ -37,12 +43,15 @@ interface SellerBilling {
 }
 
 export default function CheckoutScreen({ navigation }: Props) {
+  const demo = useDemo();
   const insets = useSafeAreaInsets();
   const { user } = useSession();
-  const { seller: cartSeller, items, subtotal, clearCart } = useCart();
+  const { seller: cartSeller, items, subtotal, itemCount, clearCart } = useCart();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  const [address, setAddress] = useState(user?.default_address ?? '');
+  const [address, setAddress] = useState(
+    demo.enabled ? demo.address : (user?.default_address ?? ''),
+  );
   const [instructions, setInstructions] = useState('');
   const [quote, setQuote] = useState<OrderQuote | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
@@ -54,7 +63,7 @@ export default function CheckoutScreen({ navigation }: Props) {
 
   const canPay = useMemo(
     () => !!cartSeller && items.length > 0 && !!quote && address.trim().length > 0 && !paying,
-    [cartSeller, items.length, quote, address, paying]
+    [cartSeller, items.length, quote, address, paying],
   );
 
   const loadQuote = useCallback(async () => {
@@ -65,6 +74,11 @@ export default function CheckoutScreen({ navigation }: Props) {
     setLoadingQuote(true);
     setQuoteError(null);
     try {
+      if (demo.enabled) {
+        setQuote(demoQuote(subtotal));
+        return;
+      }
+      if (isDemoId(cartSeller.sellerId)) throw new Error('Return to the preview marketplace to use this basket.');
       const [{ data: sellerRow, error: sErr }, fees] = await Promise.all([
         supabase
           .from('sellers')
@@ -87,7 +101,7 @@ export default function CheckoutScreen({ navigation }: Props) {
     } finally {
       setLoadingQuote(false);
     }
-  }, [cartSeller, items.length, subtotal]);
+  }, [cartSeller, items.length, subtotal, demo.enabled]);
 
   useEffect(() => {
     void loadQuote();
@@ -96,6 +110,8 @@ export default function CheckoutScreen({ navigation }: Props) {
   /** Create the pending_payment order + snapshot items; returns the order id. */
   const createOrder = useCallback(async (): Promise<string> => {
     if (!user || !cartSeller || !quote || !sellerBilling) throw new Error('Checkout not ready');
+    if (isDemoId(cartSeller.sellerId) || items.some((i) => isDemoId(i.listing.id)))
+      throw new Error('This basket cannot be paid for.');
     const trimmedAddress = address.trim();
     const orderInsert: Record<string, unknown> = {
       customer_id: user.id,
@@ -136,7 +152,7 @@ export default function CheckoutScreen({ navigation }: Props) {
         name: i.listing.name,
         unit_price: i.listing.price,
         quantity: i.quantity,
-      }))
+      })),
     );
     if (iErr) throw iErr;
     return orderId;
@@ -150,6 +166,13 @@ export default function CheckoutScreen({ navigation }: Props) {
     }
     setPaying(true);
     try {
+      if (demo.enabled) {
+        if (!cartSeller) return;
+        const orderId = demo.placeOrder(items, cartSeller, address, instructions);
+        clearCart();
+        navigation.replace('OrderConfirmation', { orderId });
+        return;
+      }
       // 1–2. Create (or reuse) the pending order + items.
       let orderId = pendingOrderId;
       if (!orderId) {
@@ -194,7 +217,10 @@ export default function CheckoutScreen({ navigation }: Props) {
       });
       if (confirmErr) {
         // Money was taken; surface but continue to confirmation for tracking.
-        logger.error('Checkout', 'confirm-order-payment failed', { orderId, error: confirmErr.message });
+        logger.error('Checkout', 'confirm-order-payment failed', {
+          orderId,
+          error: confirmErr.message,
+        });
       }
       clearCart();
       notify.success('Order placed — the seller has been notified!');
@@ -215,6 +241,11 @@ export default function CheckoutScreen({ navigation }: Props) {
     presentPaymentSheet,
     clearCart,
     navigation,
+    demo,
+    cartSeller,
+    items,
+    address,
+    instructions,
   ]);
 
   // Guard: nothing to check out.
@@ -222,11 +253,16 @@ export default function CheckoutScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+          >
             <Ionicons name="arrow-back" size={22} color={lightColors.textDark} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Checkout</Text>
-          <View style={styles.backBtn} />
+          <View style={{ width: 44 }} />
         </View>
         <View style={styles.center}>
           <Ionicons name="basket-outline" size={48} color={lightColors.textMuted} />
@@ -240,16 +276,21 @@ export default function CheckoutScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+        >
           <Ionicons name="arrow-back" size={22} color={lightColors.textDark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Checkout</Text>
-        <View style={styles.backBtn} />
+        <View style={{ width: 44 }} />
       </View>
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -260,16 +301,38 @@ export default function CheckoutScreen({ navigation }: Props) {
           <View style={styles.sellerCard}>
             <Ionicons name="storefront" size={18} color={lightColors.primary} />
             <Text style={styles.sellerText} numberOfLines={1}>
-              {items.length} {items.length === 1 ? 'item' : 'items'} from {cartSeller.businessName}
+              {itemCount} {itemCount === 1 ? 'item' : 'items'} from {cartSeller.businessName}
             </Text>
+          </View>
+
+          <View style={{ gap: 12, marginBottom: 16 }}>
+            {items.map(({ listing, quantity }) => (
+              <View
+                key={listing.id}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+              >
+                {listing.image_url && (
+                  <Image
+                    source={marketplaceImage(listing.image_url)}
+                    style={{ width: 64, height: 64, borderRadius: 12 }}
+                  />
+                )}
+                <Text style={[styles.sellerText, { flex: 1 }]}>
+                  {quantity} × {listing.name}
+                </Text>
+                <Text style={[styles.sellerText, { flex: 0 }]}>
+                  {formatMoney(listing.price * quantity)}
+                </Text>
+              </View>
+            ))}
           </View>
 
           {cartSeller.preOrderWindowId && (
             <View style={styles.preOrderNote}>
               <Ionicons name="calendar" size={16} color={lightColors.primary} />
               <Text style={styles.preOrderNoteText}>
-                Pre-order meal drop — you'll be refunded automatically if the drop doesn't reach
-                its minimum orders.
+                Pre-order meal drop — you'll be refunded automatically if the drop doesn't reach its
+                minimum orders.
               </Text>
             </View>
           )}
@@ -360,6 +423,7 @@ export default function CheckoutScreen({ navigation }: Props) {
         {/* Pay bar */}
         <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TouchableOpacity
+            accessibilityLabel={demo.enabled ? 'Place order' : 'Pay for order'}
             style={[styles.payBtn, !canPay && styles.payBtnDisabled]}
             activeOpacity={0.9}
             onPress={() => void handlePay()}
@@ -371,7 +435,9 @@ export default function CheckoutScreen({ navigation }: Props) {
               <>
                 <Ionicons name="lock-closed" size={16} color="#fff" />
                 <Text style={styles.payBtnText}>
-                  Pay {quote ? formatMoney(quote.total) : ''}
+                  {demo.enabled
+                    ? 'Place order'
+                    : `Pay ${quote ? formatMoney(quote.total) : ''}`}
                 </Text>
               </>
             )}
@@ -398,16 +464,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 20,
     backgroundColor: lightColors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 24,
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   center: {
@@ -419,7 +485,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   emptyHint: {
@@ -444,7 +510,7 @@ const styles = StyleSheet.create({
   sellerText: {
     flex: 1,
     fontSize: 14.5,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   preOrderNote: {
@@ -461,12 +527,12 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: lightColors.textDark,
     lineHeight: 18,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
 
   fieldLabel: {
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     marginTop: spacing.md,
     marginBottom: 8,
@@ -486,14 +552,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14.5,
     color: lightColors.textDark,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     padding: 0,
     minHeight: 20,
   },
   fieldError: {
     color: lightColors.error,
     fontSize: 12.5,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
     marginTop: 6,
   },
 
@@ -514,7 +580,7 @@ const styles = StyleSheet.create({
   quoteLoadingText: {
     color: lightColors.textMuted,
     fontSize: 13.5,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   quoteErrorWrap: {
     gap: 10,
@@ -522,7 +588,7 @@ const styles = StyleSheet.create({
   quoteErrorText: {
     color: lightColors.error,
     fontSize: 13.5,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   retryBtn: {
     alignSelf: 'flex-start',
@@ -534,7 +600,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -544,12 +610,12 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 14,
     color: lightColors.textMuted,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   summaryValue: {
     fontSize: 14,
     color: lightColors.textDark,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   summaryDivider: {
     height: 1,
@@ -557,12 +623,12 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   totalValue: {
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.primary,
   },
   retryNote: {
@@ -578,7 +644,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12.5,
     color: lightColors.primary,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
 
   bottomBar: {
@@ -603,6 +669,6 @@ const styles = StyleSheet.create({
   payBtnText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
 });

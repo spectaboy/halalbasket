@@ -1,3 +1,4 @@
+import { fonts } from '../../constants/typography';
 // HalalBasket — listing detail modal: image, description, quantity stepper,
 // add-to-basket CTA (single-seller cart rules apply).
 
@@ -17,6 +18,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { lightColors, spacing } from '../../constants/theme';
 import type { MainStackParamList } from '../navigation/types';
 import { supabase } from '../config/supabase';
+import { useDemo } from '../demo/DemoContext';
+import { demoListings } from '../demo/catalog';
+import { marketplaceImage } from '../demo/images';
 import { logger } from '../utils/logger';
 import { notify } from '../lib/notify';
 import { useCart, type CartSellerInfo } from '../context/CartContext';
@@ -26,6 +30,7 @@ import type { VisibleListingRow } from '../types/database';
 type Props = NativeStackScreenProps<MainStackParamList, 'ListingDetail'>;
 
 export default function ListingDetailScreen({ navigation, route }: Props) {
+  const demo = useDemo();
   const { listingId } = route.params;
   const insets = useSafeAreaInsets();
   const { items, addItem, replaceCart, setQuantity, seller: cartSeller } = useCart();
@@ -38,6 +43,10 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const fetchListing = useCallback(async () => {
     try {
       setError(null);
+      if (demo.enabled) {
+        setListing(demoListings.find((l) => l.id === listingId) ?? null);
+        return;
+      }
       const { data, error: err } = await supabase
         .from('visible_listings')
         .select('*')
@@ -53,7 +62,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
       logger.error('ListingDetail', 'fetch failed', { listingId, error: e?.message });
       setError('We could not load this item. Please try again.');
     }
-  }, [listingId]);
+  }, [listingId, demo.enabled]);
 
   useEffect(() => {
     (async () => {
@@ -65,6 +74,14 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
   const handleAddToBasket = () => {
     if (!listing) return;
+    if (listing.seller_type === 'home_cook') {
+      navigation.navigate('SellerDetail', { sellerId: listing.seller_id });
+      return;
+    }
+    if (!listing.is_open) {
+      notify.info('This seller is closed right now.');
+      return;
+    }
     if (listing.sold_out) {
       notify.warning('This item is sold out right now.');
       return;
@@ -124,9 +141,12 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
         </View>
       ) : (
         <>
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             {listing.image_url ? (
-              <Image source={{ uri: listing.image_url }} style={styles.image} />
+              <Image source={marketplaceImage(listing.image_url)} style={styles.image} />
             ) : (
               <View style={[styles.image, styles.imagePlaceholder]}>
                 <Ionicons name="fast-food-outline" size={44} color={lightColors.primary} />
@@ -139,7 +159,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                 <Text style={styles.price}>{formatMoney(listing.price)}</Text>
               </View>
               <Text style={styles.sellerLine}>from {listing.business_name}</Text>
-              {!!listing.description && <Text style={styles.description}>{listing.description}</Text>}
+              {!!listing.description && (
+                <Text style={styles.description}>{listing.description}</Text>
+              )}
               {listing.sold_out && (
                 <View style={styles.soldOutBanner}>
                   <Ionicons name="alert-circle-outline" size={16} color={lightColors.error} />
@@ -156,10 +178,15 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                     onPress={() => setLocalQuantity((q) => Math.max(1, q - 1))}
                     disabled={quantity <= 1}
                   >
-                    <Ionicons name="remove" size={18} color={quantity <= 1 ? lightColors.textMuted : lightColors.primary} />
+                    <Ionicons
+                      name="remove"
+                      size={18}
+                      color={quantity <= 1 ? lightColors.textMuted : lightColors.primary}
+                    />
                   </TouchableOpacity>
                   <Text style={styles.stepValue}>{quantity}</Text>
                   <TouchableOpacity
+                    accessibilityLabel="Increase quantity"
                     style={styles.stepBtn}
                     onPress={() => setLocalQuantity((q) => Math.min(99, q + 1))}
                   >
@@ -180,7 +207,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
             >
               <Ionicons name="basket" size={18} color="#fff" />
               <Text style={styles.ctaText}>
-                Add {quantity} to basket · {formatMoney(listing.price * quantity)}
+                {listing.seller_type === 'home_cook'
+                  ? 'Choose a meal drop'
+                  : `Add ${quantity} to basket · ${formatMoney(listing.price * quantity)}`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -209,13 +238,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: lightColors.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -229,7 +258,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
     textAlign: 'center',
   },
@@ -242,7 +271,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   scrollContent: {
     paddingBottom: 24,
@@ -269,18 +298,18 @@ const styles = StyleSheet.create({
   name: {
     flex: 1,
     fontSize: 22,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
   },
   price: {
     fontSize: 18,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.primary,
   },
   sellerLine: {
     fontSize: 13,
     color: lightColors.textMuted,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   description: {
     fontSize: 14,
@@ -300,7 +329,7 @@ const styles = StyleSheet.create({
   soldOutBannerText: {
     color: lightColors.error,
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   stepperRow: {
     flexDirection: 'row',
@@ -315,7 +344,7 @@ const styles = StyleSheet.create({
   },
   stepperLabel: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: lightColors.textDark,
   },
   stepper: {
@@ -341,7 +370,7 @@ const styles = StyleSheet.create({
   },
   stepValue: {
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: lightColors.textDark,
     minWidth: 22,
     textAlign: 'center',
@@ -368,6 +397,6 @@ const styles = StyleSheet.create({
   ctaText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
 });

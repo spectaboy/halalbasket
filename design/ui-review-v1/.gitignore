@@ -1,0 +1,10 @@
+# Local rendering dependencies and disposable capture build output.
+capture/runtime/
+capture/bundle/
+capture/*.log
+capture/before/
+
+# Local emulator evidence can include account details and on-screen credentials.
+current-native/
+implemented-native/
+demo-native/

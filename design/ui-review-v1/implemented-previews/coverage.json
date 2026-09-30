@@ -1,0 +1,38 @@
+[
+  {
+    "screen": "CompleteProfile",
+    "group": "auth",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "SignIn",
+    "group": "auth",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "VerifyEmail",
+    "group": "auth",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "CategoryBrowse",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Home",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  },
+  {
+    "screen": "Search",
+    "group": "customer",
+    "failure": null,
+    "errors": []
+  }
+]

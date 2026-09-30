@@ -17,6 +17,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { lightColors, spacing } from '../../constants/theme';
 import type { MainStackParamList } from '../navigation/types';
 import { supabase } from '../config/supabase';
+import { isDemoId } from '../demo/catalog';
+import DemoOrderTracking from '../demo/DemoOrderTracking';
 import { logger } from '../utils/logger';
 import { notify } from '../lib/notify';
 import { OrderService, ORDER_STATUS_LABELS } from '../services/orders';
@@ -61,7 +63,15 @@ const STATUS_COPY: Record<OrderStatus, string> = {
   refunded: 'This order was refunded.',
 };
 
-export default function OrderTrackingScreen({ navigation, route }: Props) {
+export default function OrderTrackingScreen(props: Props) {
+  return isDemoId(props.route.params.orderId) ? (
+    <DemoOrderTracking {...props} />
+  ) : (
+    <LiveOrderTracking {...props} />
+  );
+}
+
+function LiveOrderTracking({ navigation, route }: Props) {
   const { orderId } = route.params;
   const insets = useSafeAreaInsets();
 
@@ -69,7 +79,7 @@ export default function OrderTrackingScreen({ navigation, route }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<OrderWithDetails | null>(null);
   const [driverLoc, setDriverLoc] = useState<(GeoCoordinates & { heading: number | null }) | null>(
-    null
+    null,
   );
   const reviewPromptShown = useRef(false);
 
@@ -90,7 +100,7 @@ export default function OrderTrackingScreen({ navigation, route }: Props) {
           }),
       });
     },
-    [navigation]
+    [navigation],
   );
 
   const fetchOrder = useCallback(async (): Promise<OrderWithDetails | null> => {
@@ -249,7 +259,10 @@ export default function OrderTrackingScreen({ navigation, route }: Props) {
       {/* ── Bottom panel ── */}
       <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={styles.panelHandle} />
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.panelContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.panelContent}
+        >
           {/* Status headline */}
           <View style={styles.statusHeader}>
             <View style={[styles.statusIconCircle, terminated && styles.statusIconCancelled]}>
@@ -292,7 +305,9 @@ export default function OrderTrackingScreen({ navigation, route }: Props) {
                         {done && !isCurrent && <Ionicons name="checkmark" size={10} color="#fff" />}
                       </View>
                       {idx < PROGRESSION.length - 1 && (
-                        <View style={[styles.stepLine, currentIndex > idx && styles.stepLineDone]} />
+                        <View
+                          style={[styles.stepLine, currentIndex > idx && styles.stepLineDone]}
+                        />
                       )}
                     </View>
                     <Text
