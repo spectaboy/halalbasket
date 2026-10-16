@@ -1,5 +1,14 @@
 // HalalBasket: warm cream, forest green, and quiet neutral surfaces.
 
+// ── Logo colours ─────────────────────────────────────────────────────────────
+// Sampled from the HalalBasket logo (assets/HalalBasket.png). Use these for the
+// brand lockup so the app matches the icon exactly.
+export const brand = {
+  green: '#055134',   // Logo background green
+  gold:  '#E1AC44',   // Wreath / basket gold — the "Basket" half of the wordmark
+  ink:   '#FFFFFF',   // The "Halal" half of the wordmark
+};
+
 // ── Light theme palette (new design system) ──────────────────────────────────
 export const lightColors = {
   background:  '#FBF8F1',
@@ -20,7 +29,7 @@ export const lightColors = {
 
 // ── Dark theme palette (legacy — still used by non-migrated screens) ─────────
 export const colors = {
-  // URide brand green
+  // Brand green
   primary: '#27AE60',         // Slightly deeper than logo — less neon, more premium
   primaryLight: '#2ECC71',    // Bright version for hero/highlights only
   primaryDark: '#1E8A4A',     // Darker green for hover/pressed states

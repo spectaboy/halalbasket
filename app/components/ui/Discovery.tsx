@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { lightColors as c } from '../../../constants/theme';
 import { fonts } from '../../../constants/typography';
 import type { Database, SellerType } from '../../types/database';
+import BrandLogo from '../BrandLogo';
 
 export const discoveryImages = {
   restaurant: require('../../../assets/onboarding/restaurant.png'),
@@ -51,10 +52,7 @@ export const categories: {
 
 export function BrandWordmark() {
   return (
-    <View style={s.brand}>
-      <Ionicons name="leaf" size={22} color={c.primary} />
-      <Text style={s.wordmark}>HalalBasket</Text>
-    </View>
+    <BrandLogo size="sm" />
   );
 }
 
@@ -247,8 +245,6 @@ export function DiscoveryEmpty({
 }
 
 const s = StyleSheet.create({
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  wordmark: { color: c.textDark, fontFamily: fonts.extraBold, fontSize: 16, letterSpacing: -0.5 },
   back: {
     width: 44,
     height: 44,

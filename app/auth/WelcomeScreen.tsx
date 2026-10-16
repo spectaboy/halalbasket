@@ -10,6 +10,7 @@ import type { AuthStackParamList } from '../navigation/types';
 import { lightColors } from '../../constants/theme';
 import { fonts } from '../../constants/typography';
 import OnboardingPhoto from '../components/ui/OnboardingPhoto';
+import BrandLogo from '../components/BrandLogo';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
@@ -75,9 +76,8 @@ export default function WelcomeScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={[styles.layout, { width }]}>
-        <View style={[styles.brand, compact && styles.compactBrand]} accessible accessibilityLabel="HalalBasket">
-          <Ionicons name="basket-outline" size={30} color={lightColors.primary} />
-          <Text style={styles.wordmark}>Halal<Text style={styles.wordmarkAccent}>Basket</Text></Text>
+        <View style={[styles.brand, compact && styles.compactBrand]}>
+          <BrandLogo size={compact ? 'sm' : 'md'} />
         </View>
 
         <ScrollView ref={pager} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
@@ -147,8 +147,6 @@ const styles = StyleSheet.create({
   layout: { flex: 1 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 26, paddingTop: 12, paddingBottom: 22 },
   compactBrand: { paddingTop: 4, paddingBottom: 12 },
-  wordmark: { fontFamily: fonts.extraBold, fontSize: 25, letterSpacing: -1, color: lightColors.textDark },
-  wordmarkAccent: { fontFamily: fonts.medium, color: lightColors.primary },
   pager: { flex: 1 },
   slide: { paddingBottom: 10 },
   photoWrap: { marginHorizontal: 18 },
