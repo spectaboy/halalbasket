@@ -24,7 +24,6 @@ import LoadingDots from '../components/ui/LoadingDots';
 import { FieldError, errorBorder, useInlineErrors } from '../components/ui/FieldError';
 import { notify } from '../lib/notify';
 import { BackButton, BrandWordmark, discoveryImages } from '../components/ui/Discovery';
-import type { TextInputInstance } from 'react-native';
 
 const CODE_LENGTH = 6;
 const RESEND_COOLDOWN_S = 60;
@@ -39,7 +38,7 @@ const VerifyEmailScreen = ({ navigation, route }: Props) => {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const inputRefs = useRef<Array<TextInputInstance | null>>([]);
+  const inputRefs = useRef<Array<TextInput | null>>([]);
   const { errors, setErrors, clearError } = useInlineErrors<'code'>();
 
   useEffect(() => {

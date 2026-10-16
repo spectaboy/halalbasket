@@ -97,13 +97,22 @@ function AuthEffects({ children }: { children: React.ReactNode }) {
     })();
 
     try {
+      // This listener receives the native APNs/FCM device token, not the Expo
+      // push token, so re-resolve the Expo token before persisting it. Resolving
+      // the Expo token re-emits this event with the same device token, so only
+      // act on a genuinely new one or it loops forever.
+      let lastDeviceToken: string | null = null;
       listener = Notifications.addPushTokenListener((tokenData) => {
-        const newToken = tokenData?.data;
-        if (!newToken) return;
+        const deviceToken = String(tokenData?.data ?? '');
+        if (!deviceToken || deviceToken === lastDeviceToken) return;
+        const isFirst = lastDeviceToken === null;
+        lastDeviceToken = deviceToken;
+        // The first emission is the initial registration, already persisted above.
+        if (isFirst) return;
         console.log('🔔 Push token rotated, persisting');
-        upsertExpoPushToken(user.id, newToken).catch((e) =>
-          console.warn('🔔 Token rotation persist failed:', e),
-        );
+        registerForPushNotificationsAsync()
+          .then((token) => (token ? upsertExpoPushToken(user.id, token) : undefined))
+          .catch((e) => console.warn('🔔 Token rotation persist failed:', e));
       });
     } catch (e) {
       console.warn('🔔 addPushTokenListener unavailable:', e);

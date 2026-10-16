@@ -19,7 +19,6 @@ import { lightColors } from '../../constants/theme';
 import { searchPlaces, reverseGeocode, clearSessionToken, getPlaceDetails, geocodePlace } from '../lib/geocode';
 import { notify } from '../lib/notify';
 import BackgroundPattern from './BackgroundPattern';
-import type { TextInputInstance } from 'react-native';
 
 export interface PickedLocation {
   address: string;
@@ -55,7 +54,7 @@ const LocationPickerModal: React.FC<Props> = ({ visible, onClose, onLocationSele
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputRef = useRef<TextInputInstance>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (!visible) {

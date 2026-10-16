@@ -9,11 +9,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "runtimeVersion": "1.0.0",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#055134"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.halalbasket.app",
@@ -51,7 +46,6 @@
         "@rnmapbox/maps",
         {}
       ],
-      "expo-router",
       "expo-web-browser",
       [
         "expo-image-picker",
@@ -76,7 +70,16 @@
       ],
       "expo-font",
       "expo-secure-store",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#055134",
+          "imageWidth": 200
+        }
+      ]
     ],
     "extra": {
       "mapboxAccessToken": "",

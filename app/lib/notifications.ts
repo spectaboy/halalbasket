@@ -152,10 +152,7 @@ export async function upsertExpoPushToken(clerkId: string, token: string) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .update({
-        expo_push_token: token,
-        updated_at: new Date().toISOString()
-      })
+      .update({ expo_push_token: token })
       .eq('clerk_id', clerkId)
       .select('id, expo_push_token')
       .single();
