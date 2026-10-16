@@ -261,13 +261,13 @@ const SignInScreen = ({ navigation }: Props) => {
           <View style={styles.hero}>
             <Image
               source={discoveryImages.restaurant}
-              style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]}
+              style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
               resizeMode="cover"
             />
             <LinearGradient
               colors={['rgba(251,248,241,0.25)', 'transparent', lightColors.background]}
               locations={[0, 0.72, 1]}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
             <View style={styles.heroHeader}>
               <BackButton onPress={() => navigation.goBack()} />

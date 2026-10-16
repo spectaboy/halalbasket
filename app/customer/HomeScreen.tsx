@@ -169,13 +169,13 @@ export default function HomeScreen({ navigation }: Props) {
         >
           <Image
             source={discoveryImages.restaurant}
-            style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]}
+            style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
             resizeMode="cover"
           />
           <LinearGradient
             colors={['transparent', 'rgba(12,29,19,0.2)', 'rgba(12,29,19,0.88)']}
             locations={[0, 0.3, 1]}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
           <View style={s.heroBody}>
             <Text style={s.heroTitle}>Your next{'\n'}favourite is nearby</Text>

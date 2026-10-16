@@ -9,7 +9,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "runtimeVersion": "1.0.0",
-    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -25,7 +24,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#055134"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -67,7 +65,18 @@
         {
           "locationWhenInUsePermission": "HalalBasket uses your location to show nearby halal sellers and track your delivery in real time."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "",
+          "enableGooglePay": false
+        }
+      ],
+      "expo-font",
+      "expo-secure-store",
+      "expo-status-bar"
     ],
     "extra": {
       "mapboxAccessToken": "",

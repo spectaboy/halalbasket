@@ -129,7 +129,7 @@ export async function scheduleRideConfirmationNotification(rideId: string, drive
 export function addNotificationResponseListener() {
     const responseListener = Notifications.addNotificationResponseReceivedListener(async (response) => {
         const { actionIdentifier } = response;
-        const { rideId } = response.notification.request.content.data;
+        const rideId = response.notification.request.content.data?.rideId as string | undefined;
 
         if (!rideId) return;
 

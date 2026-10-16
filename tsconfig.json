@@ -4,9 +4,8 @@
     "strict": true,
     "jsx": "react-native",
     "esModuleInterop": true,
-    "baseUrl": "app",
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["./app/*"]
     }
   },
   "exclude": ["node_modules", "supabase"]

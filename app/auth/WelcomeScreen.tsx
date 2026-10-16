@@ -12,6 +12,7 @@ import { fonts } from '../../constants/typography';
 import OnboardingPhoto from '../components/ui/OnboardingPhoto';
 import BrandLogo from '../components/BrandLogo';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import type { ScrollViewInstance } from 'react-native';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
@@ -44,7 +45,7 @@ export default function WelcomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const width = Math.min(windowWidth, 520);
   const reducedMotion = useReducedMotion();
-  const pager = useRef<ScrollView>(null);
+  const pager = useRef<ScrollViewInstance>(null);
   const [page, setPage] = useState(0);
   const pageRef = useRef(0);
   const availableHeight = height - insets.top - insets.bottom;

@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
 
   // Toasts
   toastHost: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 9999,
     justifyContent: 'flex-start',
   },
